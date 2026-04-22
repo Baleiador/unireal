@@ -1,24 +1,19 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
-import { Input } from '../components/Input';
 import { QRCodeSVG } from 'qrcode.react';
-import { Printer, QrCode, Download, Share2, Coins } from 'lucide-react';
+import { Printer, QrCode, Download, Share2 } from 'lucide-react';
 
 export function MyQRCode() {
   const { profile } = useAuth();
   const qrRef = useRef<HTMLDivElement>(null);
-  const [chargeAmount, setChargeAmount] = useState<string>('');
 
   if (!profile) return null;
 
   // Generate the transfer link
   // The app will open the transfer page with this user as the pre-selected recipient
-  const baseUrl = `${window.location.origin}/transfer?to=${profile.id}`;
-  const transferUrl = chargeAmount && Number(chargeAmount) > 0 
-    ? `${baseUrl}&amount=${chargeAmount}`
-    : baseUrl;
+  const transferUrl = `${window.location.origin}/transfer?to=${profile.id}`;
 
   const handlePrint = () => {
     window.print();
@@ -41,16 +36,11 @@ export function MyQRCode() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 50, 50, 900, 900);
         
+        // Add text to the image
         ctx.fillStyle = 'black';
         ctx.font = 'bold 40px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(profile.full_name, 500, 930);
-
-        if (chargeAmount && Number(chargeAmount) > 0) {
-          ctx.font = 'bold 30px Inter, sans-serif';
-          ctx.fillStyle = '#F27D26';
-          ctx.fillText(`Valor: ${chargeAmount} UR`, 500, 970);
-        }
+        ctx.fillText(profile.full_name, 500, 960);
         
         const pngFile = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
@@ -92,35 +82,14 @@ export function MyQRCode() {
 
       <Card className="overflow-hidden border-none shadow-2xl">
         <div className="bg-brand-orange p-6 text-white text-center no-print">
-          <h2 className="text-xl font-bold capitalize">{profile?.full_name || 'Usuário'}</h2>
-          <p className="text-white/80 text-sm">{profile?.grade || 'Aluno'}</p>
+          <h2 className="text-xl font-bold capitalize">{profile.full_name}</h2>
+          <p className="text-white/80 text-sm">{profile.grade || 'Aluno'}</p>
         </div>
         
         <CardContent className="p-12 flex flex-col items-center justify-center bg-white">
-          {profile?.is_admin && (
-            <div className="w-full max-w-xs mb-8 no-print">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Valor Fixo da Cobrança (Opcional)</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="Exemplo: 50"
-                  className="text-xl font-bold h-14 pl-10 bg-gray-50 border-gray-200"
-                  value={chargeAmount}
-                  onChange={(e) => setChargeAmount(e.target.value)}
-                />
-                <Coins className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold uppercase text-sm">
-                  UR
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">Deixe em branco para que o pagador decida o valor.</p>
-            </div>
-          )}
-
           <div ref={qrRef} className="p-4 bg-white border-8 border-brand-orange/10 rounded-3xl shadow-inner mb-8">
             <QRCodeSVG 
-              value={transferUrl || baseUrl} 
+              value={transferUrl} 
               size={256}
               level="H"
               includeMargin={false}
@@ -129,9 +98,7 @@ export function MyQRCode() {
           
           <div className="text-center mb-8">
             <p className="text-gray-400 text-sm font-medium uppercase tracking-widest mb-1">Escaneie para pagar</p>
-            <p className="text-2xl font-black text-black">
-              {chargeAmount && Number(chargeAmount) > 0 ? `${chargeAmount} UR` : 'UNIREAL'}
-            </p>
+            <p className="text-2xl font-black text-black">UNIREAL</p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-4 no-print">

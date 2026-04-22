@@ -31,14 +31,8 @@ export function Transfer() {
   // Handle URL pre-fill
   useEffect(() => {
     const toId = searchParams.get('to');
-    const urlAmount = searchParams.get('amount');
-    
     if (toId && !selectedUser) {
       fetchUserById(toId);
-    }
-    
-    if (urlAmount && !amount) {
-      setAmount(urlAmount);
     }
   }, [searchParams]);
 
@@ -63,75 +57,50 @@ export function Transfer() {
     let scanner: Html5QrcodeScanner | null = null;
     
     if (showScanner) {
-      try {
-        const config = { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          showTorchButtonIfSupported: true
-        };
+      // Small timeout to ensure the DOM element #reader is mounted
+      const timer = setTimeout(() => {
+        try {
+          const config = { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            showTorchButtonIfSupported: true
+          };
 
-        scanner = new Html5QrcodeScanner("reader", config, false);
-        
-        scanner.render((decodedText) => {
-          try {
-            // Robust parsing mechanism to ensure we capture URL and params correctly
-            let parsedToId: string | null = null;
-            let parsedAmount: string | null = null;
-
-            // Try parsing as standard URL
+          scanner = new Html5QrcodeScanner("reader", config, false);
+          
+          scanner.render((decodedText) => {
             try {
               const url = new URL(decodedText);
-              parsedToId = url.searchParams.get('to');
-              parsedAmount = url.searchParams.get('amount');
-            } catch (e) {
-              // If standard URL parsing fails, we handle it below
-            }
-
-            // Fallback Regex parsing in case it's a malformed URL
-            if (!parsedToId && decodedText.includes('to=')) {
-               const toMatch = decodedText.match(/to=([^&]+)/);
-               if (toMatch) parsedToId = toMatch[1];
-               
-               const amountMatch = decodedText.match(/amount=([^&]+)/);
-               if (amountMatch) parsedAmount = amountMatch[1];
-            }
-
-            // Final fallback: plain UUID
-            if (!parsedToId && decodedText.length > 30 && !decodedText.includes('http')) {
-              parsedToId = decodedText;
-            }
-
-            if (parsedToId) {
-              // Force state update immediately
-              if (parsedAmount) {
-                setAmount(parsedAmount);
+              const toId = url.searchParams.get('to');
+              if (toId) {
+                fetchUserById(toId);
+                scanner?.clear().catch(e => console.error("Clear error", e));
+                setShowScanner(false);
               }
-              
-              fetchUserById(parsedToId);
-              
-              // Cleanup scanner
-              scanner?.clear().catch(e => console.error("Clear error", e));
-              setShowScanner(false);
-            } else {
-              alert("QR Code não reconhecido: " + decodedText);
-              scanner?.clear().catch(e => console.error("Clear error", e));
-              setShowScanner(false);
+            } catch (e) {
+              // If not a URL, check if it's a UUID (length > 30)
+              if (decodedText.length > 30) {
+                fetchUserById(decodedText);
+                scanner?.clear().catch(e => console.error("Clear error", e));
+                setShowScanner(false);
+              } else {
+                alert("QR Code inválido: " + decodedText);
+              }
             }
-          } catch (err) {
-            console.error("Scanner parsing error:", err);
-          }
-        }, (errorMessage) => {
-          // Silently ignore errors during scanning as it's very frequent
-        });
-        
-        scannerRef.current = scanner;
-      } catch (err) {
-        console.error("Scanner initialization error:", err);
-        setError("Erro ao iniciar a câmera. Verifique permissões.");
-      }
+          }, (errorMessage) => {
+            // Silently ignore errors during scanning as it's very frequent
+          });
+          
+          scannerRef.current = scanner;
+        } catch (err) {
+          console.error("Scanner initialization error:", err);
+          setError("Erro ao iniciar a câmera. Verifique se deu permissão e se não está sendo usada por outro app.");
+        }
+      }, 100);
 
       return () => {
+        clearTimeout(timer);
         if (scanner) {
           scanner.clear().catch(e => console.error("Failed to clear scanner", e));
         }
