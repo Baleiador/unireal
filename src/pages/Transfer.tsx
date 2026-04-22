@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { Send, Search, UserCheck } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { Send, Search, UserCheck, QrCode, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 type Profile = {
   id: string;
@@ -22,7 +23,74 @@ export function Transfer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [searchParams] = useSearchParams();
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const navigate = useNavigate();
+
+  // Handle URL pre-fill
+  useEffect(() => {
+    const toId = searchParams.get('to');
+    if (toId && !selectedUser) {
+      fetchUserById(toId);
+    }
+  }, [searchParams]);
+
+  const fetchUserById = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, grade')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && data) {
+        setSelectedUser(data);
+      }
+    } catch (err) {
+      console.error('Error fetching user by ID:', err);
+    }
+  };
+
+  // Handle Scanner
+  useEffect(() => {
+    if (showScanner) {
+      const scanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+      
+      scanner.render((decodedText) => {
+        try {
+          const url = new URL(decodedText);
+          const toId = url.searchParams.get('to');
+          if (toId) {
+            fetchUserById(toId);
+            scanner.clear();
+            setShowScanner(false);
+          }
+        } catch (e) {
+          // If not a URL, check if it's a UUID
+          if (decodedText.length > 30) {
+            fetchUserById(decodedText);
+            scanner.clear();
+            setShowScanner(false);
+          }
+        }
+      }, (error) => {
+        // console.warn(error);
+      });
+      
+      scannerRef.current = scanner;
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(e => console.error("Failed to clear scanner", e));
+      }
+    };
+  }, [showScanner]);
 
   useEffect(() => {
     if (searchQuery.length > 2) {
@@ -140,6 +208,25 @@ export function Transfer() {
                 </div>
               )}
 
+              {showScanner && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                  <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden flex flex-col">
+                    <div className="p-4 border-b flex justify-between items-center">
+                      <h3 className="font-bold">Escanear QR Code</h3>
+                      <button onClick={() => setShowScanner(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <div id="reader" className="w-full"></div>
+                    </div>
+                    <div className="p-6 text-center text-sm text-gray-500">
+                      Aponte a câmera para o QR Code do colega
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-orange-50 p-4 rounded-xl border border-brand-orange/20 flex justify-between items-center">
                 <span className="text-brand-orange font-medium">Seu Saldo Disponível</span>
                 <span className="text-2xl font-bold text-brand-orange">{profile?.balance || 0} UR</span>
@@ -147,7 +234,17 @@ export function Transfer() {
 
               {!selectedUser ? (
                 <div className="space-y-4">
-                  <label className="block text-sm font-medium text-gray-700">Para quem você quer enviar?</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Para quem você quer enviar?</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowScanner(true)}
+                      className="text-brand-orange font-bold text-sm flex items-center gap-1 hover:underline"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      Escanear QR
+                    </button>
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <Input

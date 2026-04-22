@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode } from 'lucide-react';
 import { Link } from 'react-router';
 
 type Transaction = {
@@ -57,7 +57,7 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Balance Card */}
-        <Card className="md:col-span-2 bg-gradient-to-br from-brand-orange to-orange-600 text-white border-none">
+        <Card className="md:col-span-2 bg-gradient-to-br from-brand-orange to-orange-600 text-white border-none shadow-lg shadow-brand-orange/20">
           <CardContent className="p-8 flex flex-col justify-between h-full">
             <div className="flex items-center gap-3 mb-8">
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
@@ -79,20 +79,50 @@ export function Dashboard() {
         </Card>
 
         {/* Quick Actions */}
-        <div className="space-y-6">
-          <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block h-full">
-            <Card className="hover:border-brand-orange/50 transition-colors cursor-pointer h-full">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center h-full gap-4">
-                <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center text-brand-orange">
-                  <ArrowUpRight className="w-8 h-8" />
+        <div className="flex flex-col gap-4">
+          <Link to={profile?.is_admin ? "/admin" : "/transfer"}>
+            <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange shrink-0">
+                  <ArrowUpRight className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-black">
+                  <h3 className="font-bold text-black leading-tight">
                     {profile?.is_admin ? 'Gerar Moedas' : 'Transferir'}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    {profile?.is_admin ? 'Recompense seus alunos' : 'Envie Unireais para colegas'}
+                  <p className="text-xs text-gray-500">
+                    {profile?.is_admin ? 'Premiar alunos' : 'Enviar para colegas'}
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {!profile?.is_admin && (
+            <Link to="/my-qr">
+              <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange shrink-0">
+                    <QrCode className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-black leading-tight">Receber</h3>
+                    <p className="text-xs text-gray-500">Mostrar meu código QR</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+
+          <Link to="/ranking">
+            <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange shrink-0">
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-black leading-tight">Ranking</h3>
+                  <p className="text-xs text-gray-500">Ver líderes</p>
                 </div>
               </CardContent>
             </Card>

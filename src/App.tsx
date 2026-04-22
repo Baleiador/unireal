@@ -10,6 +10,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Ranking } from './pages/Ranking';
 import { Transfer } from './pages/Transfer';
 import { Admin } from './pages/Admin';
+import { MyQRCode } from './pages/MyQRCode';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="ranking" element={<Ranking />} />
             <Route path="transfer" element={<Transfer />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="my-qr" element={<MyQRCode />} />
           </Route>
         </Routes>
       </BrowserRouter>

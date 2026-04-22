@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Logo } from './Logo';
-import { LayoutDashboard, Trophy, Send, LogOut, User, PlusCircle } from 'lucide-react';
+import { LayoutDashboard, Trophy, Send, LogOut, User, PlusCircle, QrCode } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export function Layout() {
@@ -15,6 +15,7 @@ export function Layout() {
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Meu QR Code', path: '/my-qr', icon: QrCode },
     { name: 'Ranking', path: '/ranking', icon: Trophy },
     { name: 'Transferir', path: '/transfer', icon: Send },
   ];
