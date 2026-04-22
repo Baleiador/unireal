@@ -54,42 +54,58 @@ export function Transfer() {
 
   // Handle Scanner
   useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    
     if (showScanner) {
-      const scanner = new Html5QrcodeScanner(
-        "reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        /* verbose= */ false
-      );
-      
-      scanner.render((decodedText) => {
+      // Small timeout to ensure the DOM element #reader is mounted
+      const timer = setTimeout(() => {
         try {
-          const url = new URL(decodedText);
-          const toId = url.searchParams.get('to');
-          if (toId) {
-            fetchUserById(toId);
-            scanner.clear();
-            setShowScanner(false);
-          }
-        } catch (e) {
-          // If not a URL, check if it's a UUID
-          if (decodedText.length > 30) {
-            fetchUserById(decodedText);
-            scanner.clear();
-            setShowScanner(false);
-          }
-        }
-      }, (error) => {
-        // console.warn(error);
-      });
-      
-      scannerRef.current = scanner;
-    }
+          const config = { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            showTorchButtonIfSupported: true
+          };
 
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => console.error("Failed to clear scanner", e));
-      }
-    };
+          scanner = new Html5QrcodeScanner("reader", config, false);
+          
+          scanner.render((decodedText) => {
+            try {
+              const url = new URL(decodedText);
+              const toId = url.searchParams.get('to');
+              if (toId) {
+                fetchUserById(toId);
+                scanner?.clear().catch(e => console.error("Clear error", e));
+                setShowScanner(false);
+              }
+            } catch (e) {
+              // If not a URL, check if it's a UUID (length > 30)
+              if (decodedText.length > 30) {
+                fetchUserById(decodedText);
+                scanner?.clear().catch(e => console.error("Clear error", e));
+                setShowScanner(false);
+              } else {
+                alert("QR Code inválido: " + decodedText);
+              }
+            }
+          }, (errorMessage) => {
+            // Silently ignore errors during scanning as it's very frequent
+          });
+          
+          scannerRef.current = scanner;
+        } catch (err) {
+          console.error("Scanner initialization error:", err);
+          setError("Erro ao iniciar a câmera. Verifique se deu permissão e se não está sendo usada por outro app.");
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        if (scanner) {
+          scanner.clear().catch(e => console.error("Failed to clear scanner", e));
+        }
+      };
+    }
   }, [showScanner]);
 
   useEffect(() => {
@@ -217,8 +233,30 @@ export function Transfer() {
                         <X className="w-6 h-6" />
                       </button>
                     </div>
-                    <div className="p-4">
-                      <div id="reader" className="w-full"></div>
+                    <div className="p-4 overflow-hidden">
+                      <div id="reader" className="w-full overflow-hidden rounded-2xl border-none"></div>
+                      <style dangerouslySetInnerHTML={{ __html: `
+                        #reader { border: none !important; }
+                        #reader __dashboard_section_title { display: none !important; }
+                        #reader button { 
+                          background-color: #F27D26 !important; 
+                          color: white !important; 
+                          border: none !important; 
+                          padding: 10px 20px !important; 
+                          border-radius: 12px !important; 
+                          font-weight: bold !important;
+                          cursor: pointer !important;
+                          margin: 10px auto !important;
+                          display: block !important;
+                        }
+                        #reader img { display: none !important; }
+                        #reader select {
+                          padding: 8px !important;
+                          border-radius: 8px !important;
+                          border: 1px solid #ddd !important;
+                          margin: 5px !important;
+                        }
+                      `}} />
                     </div>
                     <div className="p-6 text-center text-sm text-gray-500">
                       Aponte a câmera para o QR Code do colega
