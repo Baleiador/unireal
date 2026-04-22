@@ -98,21 +98,19 @@ export function Dashboard() {
             </Card>
           </Link>
 
-          {!profile?.is_admin && (
-            <Link to="/my-qr">
-              <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange shrink-0">
-                    <QrCode className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-black leading-tight">Receber</h3>
-                    <p className="text-xs text-gray-500">Mostrar meu código QR</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )}
+          <Link to="/my-qr">
+            <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange shrink-0">
+                  <QrCode className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-black leading-tight">Receber</h3>
+                  <p className="text-xs text-gray-500">Mostrar meu código QR</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Link to="/ranking">
             <Card className="hover:border-brand-orange/50 transition-all cursor-pointer border-brand-orange/10 shadow-sm hover:shadow-md hover:-translate-y-1">
