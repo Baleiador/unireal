@@ -31,8 +31,14 @@ export function Transfer() {
   // Handle URL pre-fill
   useEffect(() => {
     const toId = searchParams.get('to');
+    const urlAmount = searchParams.get('amount');
+    
     if (toId && !selectedUser) {
       fetchUserById(toId);
+    }
+    
+    if (urlAmount && !amount) {
+      setAmount(urlAmount);
     }
   }, [searchParams]);
 
@@ -73,8 +79,13 @@ export function Transfer() {
             try {
               const url = new URL(decodedText);
               const toId = url.searchParams.get('to');
+              const urlAmount = url.searchParams.get('amount');
+              
               if (toId) {
                 fetchUserById(toId);
+                if (urlAmount) {
+                  setAmount(urlAmount);
+                }
                 scanner?.clear().catch(e => console.error("Clear error", e));
                 setShowScanner(false);
               }
