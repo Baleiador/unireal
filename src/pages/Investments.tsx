@@ -139,7 +139,7 @@ export function Investments() {
       let rateValue = 0;
 
       if (selectedProduct === 'cdb_110') {
-        type = 'CDB MAX';
+        type = 'CDB MAX Plus';
         rateType = 'CDI';
         rateValue = 110;
       } else if (selectedProduct === 'lci_fix') {
@@ -150,6 +150,26 @@ export function Investments() {
         type = 'CDB Liquidez Diária';
         rateType = 'CDI';
         rateValue = 100;
+      } else if (selectedProduct === 'tesouro_selic') {
+        type = 'Tesouro Selic';
+        rateType = 'CDI';
+        rateValue = 100; // Simplified as 100% of CDI for simulation purposes
+      } else if (selectedProduct === 'poupanca') {
+        type = 'Poupança';
+        rateType = 'CDI';
+        rateValue = 70; // Poupança usually yields 70% of Selic when Selic > 8.5%
+      } else if (selectedProduct === 'lca_95') {
+        type = 'LCA Agronegócio';
+        rateType = 'CDI';
+        rateValue = 95;
+      } else if (selectedProduct === 'cdb_120') {
+        type = 'CDB Banco Secundário';
+        rateType = 'CDI';
+        rateValue = 120;
+      } else if (selectedProduct === 'debenture_prefixada') {
+        type = 'Debênture de Infraestrutura';
+        rateType = 'FIXED';
+        rateValue = 15.0; // 15% a.a
       }
 
       // Decrement balance
@@ -286,6 +306,34 @@ CREATE POLICY "Users can update their own investments"
             <CardContent className="space-y-4">
               
               <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'poupanca' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('poupanca')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-gray-400" />
+                    Poupança Unireal
+                  </h3>
+                  <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold w-fit">70% da Selic</span>
+                </div>
+                <p className="text-sm text-gray-500">O mais tradicional. Rende menos que as outras opções (equivale a {(Number(cdiRate)*0.7).toFixed(2)}% ao ano).</p>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'tesouro_selic' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('tesouro_selic')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-gray-400" />
+                    Tesouro Selic
+                  </h3>
+                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">100% da Selic</span>
+                </div>
+                <p className="text-sm text-gray-500">Emprestado ao "Governo", risco baixíssimo. Rende aproximadamente {cdiRate}% ao ano.</p>
+              </div>
+
+              <div 
                 className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'cdb_100' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
                 onClick={() => setSelectedProduct('cdb_100')}
               >
@@ -297,6 +345,20 @@ CREATE POLICY "Users can update their own investments"
                   <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">100% do CDI</span>
                 </div>
                 <p className="text-sm text-gray-500">Ideal para deixar o saldo render. Rende equivalente a {cdiRate}% ao ano.</p>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'lca_95' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('lca_95')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-gray-400" />
+                    LCA Agronegócio
+                  </h3>
+                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">95% do CDI</span>
+                </div>
+                <p className="text-sm text-gray-500">Apoie o agronegócio de forma isenta (na vida real). Rende {(Number(cdiRate)*0.95).toFixed(2)}% ao ano.</p>
               </div>
 
               <div 
@@ -314,6 +376,20 @@ CREATE POLICY "Users can update their own investments"
               </div>
 
               <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'cdb_120' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('cdb_120')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-gray-400" />
+                    CDB Banco Secundário
+                  </h3>
+                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">120% do CDI</span>
+                </div>
+                <p className="text-sm text-gray-500">Mais retorno, mas emitido por instituições menores. Rende {(Number(cdiRate)*1.2).toFixed(2)}% ao ano.</p>
+              </div>
+
+              <div 
                 className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'lci_fix' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
                 onClick={() => setSelectedProduct('lci_fix')}
               >
@@ -325,6 +401,20 @@ CREATE POLICY "Users can update their own investments"
                   <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold w-fit">Prefixado</span>
                 </div>
                 <p className="text-sm text-gray-500">Trave seu ganho em 12,00% ao ano, independentemente se a Selic cair.</p>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'debenture_prefixada' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('debenture_prefixada')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-gray-400" />
+                    Debênture de Infra. 15%
+                  </h3>
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold w-fit">Prefixado</span>
+                </div>
+                <p className="text-sm text-gray-500">Empreste direto para grandes projetos. Rende incríveis 15,00% ao ano, mas tem maior risco.</p>
               </div>
 
             </CardContent>
