@@ -63,6 +63,9 @@ export function Investments() {
   const [investing, setInvesting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'ativos' | 'resgatados'>('ativos');
 
   // Auto-refresh yield display
   const [, setTick] = useState(0);
@@ -224,19 +227,29 @@ export function Investments() {
       if (updateInvError) throw updateInvError;
       
       // Update user balance
-      const { data: userData } = await supabase.from('profiles').select('balance').eq('id', profile?.id).single();
-      const newBalance = (userData?.balance || 0) + currentVal;
+      const { data: userData, error: userError } = await supabase.from('profiles').select('balance').eq('id', profile?.id).single();
+      if (userError) throw userError;
       
-      await supabase.from('profiles').update({ balance: newBalance }).eq('id', profile?.id);
+      // Using Math.floor to keep precision to 2 decimal places and avoid float issues
+      const newBalance = Math.floor(((userData?.balance || 0) + currentVal) * 100) / 100;
       
-      await refreshProfile();
+      const { error: profileUpdateError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', profile?.id);
+      if (profileUpdateError) throw profileUpdateError;
+      
       await fetchInvestments();
+      await refreshProfile(); // Refresh context
       alert(`Você resgatou ${currentVal.toFixed(2)} UR com sucesso!`);
-    } catch(err) {
+    } catch(err: any) {
       console.error(err);
-      alert("Erro ao resgatar.");
+      alert(`Erro ao resgatar: ${err?.message || 'Desconhecido'}`);
     }
   };
+
+  // Calculate portfolio totals
+  const activeInvestments = investments.filter(inv => !inv.redeemed_at);
+  const totalInvested = activeInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+  const totalCurrentValue = activeInvestments.reduce((acc, inv) => acc + calculateCurrentAmount(inv, selicRate), 0);
+  const totalProfit = totalCurrentValue - totalInvested;
 
   if (dbError) {
     return (
@@ -458,66 +471,118 @@ CREATE POLICY "Users can update their own investments"
         </div>
 
         {/* Minha Carteira */}
-        <div className="lg:col-span-1">
-          <Card className="h-full">
-            <CardHeader className="bg-gray-50 border-b border-gray-100">
-              <CardTitle className="text-lg">Meus Investimentos</CardTitle>
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="shadow-md shadow-brand-orange/5 border-orange-100">
+            <CardHeader className="bg-gradient-to-br from-brand-orange to-orange-600 rounded-t-xl text-white">
+              <CardTitle className="text-lg text-white">Resumo da Carteira</CardTitle>
             </CardHeader>
-            <CardContent className="p-0 divide-y divide-gray-100 h-[500px] overflow-y-auto">
+            <CardContent className="p-5 flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-medium">Investido</span>
+                <span className="font-bold text-black">{totalInvested.toFixed(2)} UR</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-medium">Valor Bruto Novo</span>
+                <span className="font-black text-brand-orange text-lg">
+                  {totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
+                </span>
+              </div>
+              <div className="pt-3 border-t border-gray-100 flex justify-between items-center bg-green-50 p-3 rounded-lg">
+                <span className="text-green-700 font-bold text-sm">Lucro Acumulado</span>
+                <span className="text-green-700 font-black">+{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="h-full">
+            <CardHeader className="bg-gray-50 border-b border-gray-100 flex flex-row items-center justify-between p-4">
+              <CardTitle className="text-lg">Meus Títulos</CardTitle>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setActiveTab('ativos')} 
+                  className={`text-sm font-bold pb-2 border-b-2 transition-colors ${activeTab === 'ativos' ? 'text-brand-orange border-brand-orange' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                >
+                  Ativos
+                </button>
+                <button 
+                  onClick={() => setActiveTab('resgatados')} 
+                  className={`text-sm font-bold pb-2 border-b-2 transition-colors ${activeTab === 'resgatados' ? 'text-brand-orange border-brand-orange' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                >
+                  Resgatados
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 divide-y divide-gray-100 h-[400px] overflow-y-auto min-h-[300px]">
               {loading ? (
-                <div className="p-6 text-center text-gray-500 text-sm">Carregando carteira...</div>
-              ) : investments.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 flex flex-col items-center">
-                  <Wallet className="w-12 h-12 text-gray-300 mb-3" />
-                  <p>Você ainda não tem investimentos.</p>
+                <div className="p-6 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
+                  <div className="w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full animate-spin"></div>
+                  Carregando carteira...
                 </div>
               ) : (
-                investments.map((inv) => {
-                  const isRedeemed = !!inv.redeemed_at;
-                  const currentAmount = calculateCurrentAmount(inv, selicRate);
-                  const profit = currentAmount - inv.amount;
-                  
-                  return (
-                    <div key={inv.id} className={`p-5 transition-colors ${isRedeemed ? 'bg-gray-50/50' : 'hover:bg-orange-50/30'}`}>
-                      <div className="flex justify-between mb-1">
-                        <span className={`font-bold ${isRedeemed ? 'text-gray-500' : 'text-black'}`}>{inv.type}</span>
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${
-                          inv.rate_type === 'CDI' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {inv.rate_type === 'CDI' ? `${inv.rate_value}% CDI` : `${inv.rate_value}% a.a`}
-                        </span>
+                (() => {
+                  const filteredInvestments = investments.filter(inv => 
+                    activeTab === 'ativos' ? !inv.redeemed_at : !!inv.redeemed_at
+                  );
+
+                  if (filteredInvestments.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-gray-500 flex flex-col items-center">
+                        <Wallet className="w-12 h-12 text-brand-orange/30 mb-3" />
+                        <p>Você não possui títulos {activeTab === 'ativos' ? 'ativos' : 'resgatados'}.</p>
                       </div>
-                      
-                      <div className="flex justify-between items-end mt-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Investido: {inv.amount} UR</p>
-                          <div className="flex items-baseline gap-2">
-                            <span className={`text-2xl font-black tracking-tight ${isRedeemed ? 'text-gray-400' : 'text-brand-orange'}`}>
-                              {currentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                            </span>
-                            <span className="text-xs uppercase text-gray-400 font-bold">UR</span>
-                          </div>
-                          {profit > 0 && !isRedeemed && (
-                            <p className="text-xs text-green-600 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro</p>
-                          )}
+                    );
+                  }
+
+                  return filteredInvestments.map((inv) => {
+                    const isRedeemed = !!inv.redeemed_at;
+                    const currentAmount = calculateCurrentAmount(inv, selicRate);
+                    const profit = currentAmount - inv.amount;
+                    
+                    return (
+                      <div key={inv.id} className={`p-5 transition-colors ${isRedeemed ? 'bg-gray-50/50' : 'hover:bg-orange-50/30'}`}>
+                        <div className="flex justify-between mb-1">
+                          <span className={`font-bold ${isRedeemed ? 'text-gray-500' : 'text-black'}`}>{inv.type}</span>
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            inv.rate_type === 'CDI' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {inv.rate_type === 'CDI' ? `${inv.rate_value}% CDI` : `${inv.rate_value}% a.a`}
+                          </span>
                         </div>
                         
-                        {!isRedeemed ? (
-                          <button 
-                            onClick={() => handleRedeem(inv)}
-                            className="text-sm font-bold text-brand-orange hover:text-orange-700 bg-orange-100 px-3 py-2 rounded-lg transition-colors"
-                          >
-                            Resgatar
-                          </button>
-                        ) : (
-                          <span className="text-xs font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Resgatado
-                          </span>
-                        )}
+                        <div className="flex justify-between items-end mt-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Investido: {inv.amount} UR</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className={`text-2xl font-black tracking-tight ${isRedeemed ? 'text-gray-400' : 'text-brand-orange'}`}>
+                                {currentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                              </span>
+                              <span className="text-xs uppercase text-gray-400 font-bold">UR</span>
+                            </div>
+                            {profit > 0 && !isRedeemed && (
+                              <p className="text-xs text-green-600 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro</p>
+                            )}
+                            {profit > 0 && isRedeemed && (
+                              <p className="text-xs text-gray-500 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro realizado</p>
+                            )}
+                          </div>
+                          
+                          {!isRedeemed ? (
+                            <button 
+                              onClick={() => handleRedeem(inv)}
+                              className="text-sm font-bold text-brand-orange hover:text-orange-700 bg-orange-100 px-3 py-2 rounded-lg transition-colors"
+                            >
+                              Resgatar
+                            </button>
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> Resgatado
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })
+                    )
+                  });
+                })()
               )}
             </CardContent>
           </Card>
