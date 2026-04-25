@@ -10,6 +10,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Ranking } from './pages/Ranking';
 import { Transfer } from './pages/Transfer';
 import { Admin } from './pages/Admin';
+import { Investments } from './pages/Investments';
 import { MyQRCode } from './pages/MyQRCode';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="ranking" element={<Ranking />} />
             <Route path="transfer" element={<Transfer />} />
+            <Route path="investments" element={<Investments />} />
             <Route path="admin" element={<Admin />} />
             <Route path="my-qr" element={<MyQRCode />} />
           </Route>
