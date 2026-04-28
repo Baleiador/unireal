@@ -196,13 +196,14 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="text-center p-4 bg-white rounded-2xl shadow-sm border border-brand-orange/10">
-              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Cotação do Dia</p>
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-2xl font-black text-black">1 UR</span>
+            <div className="text-center p-6 bg-white rounded-3xl shadow-sm border border-brand-orange/10">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2">Cotação do Dia</p>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl font-black text-black">1 UR</span>
                 <span className="text-brand-orange font-bold text-xl">=</span>
-                <span className="text-2xl font-black text-black">R$ {liveRate.toFixed(2)}</span>
+                <span className="text-3xl font-black text-black">R$ {liveRate.toFixed(2)}</span>
               </div>
+              <p className="text-[10px] text-gray-400 mt-2 font-bold italic tracking-tight">Cada 100 Unireais valem R$ 1,00 real</p>
             </div>
 
             <div className="space-y-3">
@@ -226,14 +227,18 @@ export function Dashboard() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm font-bold text-gray-700">Preços de Referência</h4>
+              <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider text-xs">Exemplos para a Feira</h4>
               <div className="p-3 bg-white/50 rounded-xl border border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Doce Simples (20 UR)</span>
-                <span className="text-black font-bold">R$ {(20 * liveRate).toFixed(2)}</span>
+                <span className="text-xs text-gray-500 font-medium">Bala / Doce Simples (100 UR)</span>
+                <span className="text-black font-black">{formatBRL(100)}</span>
               </div>
               <div className="p-3 bg-white/50 rounded-xl border border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Lanche Completo (150 UR)</span>
-                <span className="text-black font-bold">R$ {(150 * liveRate).toFixed(2)}</span>
+                <span className="text-xs text-gray-500 font-medium">Refrigerante / Suco (500 UR)</span>
+                <span className="text-black font-black">{formatBRL(500)}</span>
+              </div>
+              <div className="p-3 bg-white/50 rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500 font-medium">Lanche Completo (1.500 UR)</span>
+                <span className="text-black font-black">{formatBRL(1500)}</span>
               </div>
             </div>
 
