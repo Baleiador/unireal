@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
 import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
 import { Link } from 'react-router';
@@ -22,11 +23,30 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [liveRate, setLiveRate] = useState<number>(0.10);
   const [formattedBalance, setFormattedBalance] = useState<string>('R$ 0,00');
+  const [calcValue, setCalcValue] = useState<string>('');
 
   useEffect(() => {
     if (profile) {
       fetchTransactions();
       updateLiveValues();
+
+      // Real-time listener for exchange rate
+      const channel = supabase
+        .channel('public:settings')
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'settings',
+          filter: "key=eq.exchange_rate"
+        }, (payload) => {
+          const newRate = parseFloat(payload.new.value);
+          setLiveRate(newRate);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [profile]);
 
@@ -38,6 +58,15 @@ export function Dashboard() {
       setFormattedBalance(formatted);
     }
   };
+
+  useEffect(() => {
+    // Also update balance BRL when rate changes
+    const updateBRL = async () => {
+       const formatted = await formatBRL(profile?.balance || 0);
+       setFormattedBalance(formatted);
+    };
+    updateBRL();
+  }, [liveRate, profile?.balance]);
 
   const fetchTransactions = async () => {
     try {
@@ -201,35 +230,54 @@ export function Dashboard() {
           <CardHeader>
             <CardTitle className="text-brand-orange flex items-center gap-2">
               <TrendingUpDown className="w-5 h-5" />
-              Câmbio Sugerido
+              Câmbio para a Feira
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center p-4 bg-white rounded-2xl shadow-sm border border-brand-orange/10">
-              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Cotação Atual</p>
-              <p className="text-2xl font-black text-black">1 UR = R$ {liveRate.toFixed(2)}</p>
-              <p className="text-[10px] text-gray-400 mt-1 italic">Cada Unireal vale R$ {liveRate.toFixed(2)} reais</p>
+              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Cotação do Dia</p>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-2xl font-black text-black">1 UR</span>
+                <span className="text-brand-orange font-bold text-xl">=</span>
+                <span className="text-2xl font-black text-black">R$ {liveRate.toFixed(2)}</span>
+              </div>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm font-bold text-gray-700">Tabela de Preços (Simulação)</h4>
-              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
-                <span className="text-sm text-gray-500">Snack / Doce (50 UR)</span>
-                <span className="text-brand-orange font-black">R$ {(50 * liveRate).toFixed(2)}</span>
+              <h4 className="text-sm font-bold text-gray-700">Calculadora Rápida</h4>
+              <div className="relative">
+                <Input 
+                  type="number"
+                  placeholder="Quantos UR você tem?"
+                  className="bg-white pr-12 text-lg font-bold"
+                  value={calcValue}
+                  onChange={(e) => setCalcValue(e.target.value)}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs uppercase">UR</span>
               </div>
-              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
-                <span className="text-sm text-gray-500">Bebida (40 UR)</span>
-                <span className="text-brand-orange font-black">R$ {(40 * liveRate).toFixed(2)}</span>
+              {calcValue && (
+                <div className="p-3 bg-brand-orange text-white rounded-xl text-center animate-in zoom-in-95 duration-200">
+                  <p className="text-xs font-medium uppercase opacity-80">Valor em Reais</p>
+                  <p className="text-xl font-black">R$ {(Number(calcValue) * liveRate).toFixed(2)}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-gray-700">Preços de Referência</h4>
+              <div className="p-3 bg-white/50 rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500">Doce Simples (20 UR)</span>
+                <span className="text-black font-bold">R$ {(20 * liveRate).toFixed(2)}</span>
               </div>
-              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
-                <span className="text-sm text-gray-500">Item Colecionável (200 UR)</span>
-                <span className="text-brand-orange font-black">R$ {(200 * liveRate).toFixed(2)}</span>
+              <div className="p-3 bg-white/50 rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500">Lanche Completo (150 UR)</span>
+                <span className="text-black font-bold">R$ {(150 * liveRate).toFixed(2)}</span>
               </div>
             </div>
 
             <div className="p-4 bg-orange-100 rounded-xl">
-              <p className="text-[11px] text-brand-orange leading-relaxed">
-                Este câmbio ajuda você a entender o valor real do seu esforço. Use seus <strong>Investimentos</strong> para fazer esse valor crescer até o dia da feira!
+              <p className="text-[10px] text-brand-orange leading-relaxed font-medium">
+                A cotação pode mudar! Fique de olho e use seus <strong>Investimentos</strong> para fazer seu saldo render até o dia da feira.
               </p>
             </div>
           </CardContent>

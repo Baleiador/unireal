@@ -303,26 +303,28 @@ export function Admin() {
                 </div>
 
                 <div className="w-full md:w-80 p-8 bg-brand-orange/5 rounded-3xl border border-brand-orange/10 flex flex-col items-center justify-center text-center">
-                  <span className="text-brand-orange text-xs font-black uppercase tracking-widest mb-4">Prévia do Câmbio</span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center">
-                      <span className="text-3xl font-black text-brand-orange">1</span>
-                      <span className="text-[10px] font-bold text-brand-orange/60 uppercase">Unireal</span>
+                  <span className="text-brand-orange text-xs font-black uppercase tracking-widest mb-4">Impacto nos Preços</span>
+                  <div className="space-y-4 w-full">
+                    <div className="flex flex-col items-center mb-2">
+                       <span className="text-3xl font-black text-black">R$ {parseFloat(exchangeRate || '0').toFixed(2)}</span>
+                       <span className="text-[10px] font-bold text-gray-400 uppercase">por Unireal</span>
                     </div>
-                    <div className="h-8 w-px bg-brand-orange/20" />
-                    <div className="flex flex-col items-center">
-                      <span className="text-3xl font-black text-black">R$ {parseFloat(exchangeRate || '0').toFixed(2)}</span>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Reais</span>
-                    </div>
-                  </div>
-                  <div className="mt-6 w-full pt-6 border-t border-brand-orange/10">
-                    <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
-                      <span>10 UR</span>
-                      <span className="text-black">R$ {(10 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs font-bold text-gray-500">
-                      <span>100 UR</span>
-                      <span className="text-black">R$ {(100 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                    
+                    <div className="h-px w-full bg-brand-orange/10" />
+                    
+                    <div className="space-y-2 text-left">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">Doce (20 UR)</span>
+                        <span className="font-bold text-black">R$ {(20 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">Lanche (150 UR)</span>
+                        <span className="font-bold text-black">R$ {(150 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">Prêmio Top (500 UR)</span>
+                        <span className="font-bold text-black">R$ {(500 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
