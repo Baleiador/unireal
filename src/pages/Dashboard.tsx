@@ -5,7 +5,7 @@ import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
 import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
 import { Link } from 'react-router';
-import { formatBRL, getLiveRate } from '../constants';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 
 type Transaction = {
   id: string;
@@ -21,52 +21,14 @@ export function Dashboard() {
   const { profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [liveRate, setLiveRate] = useState<number>(0.10);
-  const [formattedBalance, setFormattedBalance] = useState<string>('R$ 0,00');
+  const { rate: liveRate, formatValue: formatBRL } = useExchangeRate();
   const [calcValue, setCalcValue] = useState<string>('');
 
   useEffect(() => {
     if (profile) {
       fetchTransactions();
-      updateLiveValues();
-
-      // Real-time listener for exchange rate
-      const channel = supabase
-        .channel('public:settings')
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'settings',
-          filter: "key=eq.exchange_rate"
-        }, (payload) => {
-          const newRate = parseFloat(payload.new.value);
-          setLiveRate(newRate);
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
   }, [profile]);
-
-  const updateLiveValues = async () => {
-    if (profile) {
-      const rate = await getLiveRate();
-      setLiveRate(rate);
-      const formatted = await formatBRL(profile.balance || 0);
-      setFormattedBalance(formatted);
-    }
-  };
-
-  useEffect(() => {
-    // Also update balance BRL when rate changes
-    const updateBRL = async () => {
-       const formatted = await formatBRL(profile?.balance || 0);
-       setFormattedBalance(formatted);
-    };
-    updateBRL();
-  }, [liveRate, profile?.balance]);
 
   const fetchTransactions = async () => {
     try {
@@ -118,7 +80,7 @@ export function Dashboard() {
               </p>
               {!profile?.is_admin && (
                 <p className="text-white/60 text-sm mt-3 font-medium bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-md">
-                  Equivale a <span className="text-white font-bold">{formattedBalance}</span> para a feira
+                  Equivale a <span className="text-white font-bold">{formatBRL(profile?.balance || 0)}</span> para a feira
                 </p>
               )}
             </div>

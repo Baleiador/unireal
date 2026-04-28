@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown } from 'lucide-react';
-import { formatBRL } from '../constants';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 
 type Investment = {
   id: string;
@@ -26,46 +26,29 @@ const calculateCurrentAmount = (investment: Investment, currentSelic: number) =>
   
   const startDate = new Date(investment.created_at);
   const now = new Date();
-  
-  // Highlighting: This is a school simulation. 
-  // We'll calculate yield scaled by days, but using a faster simulation if needed.
-  // For realism, let's use the exact annual formula: A = P(1 + r)^t (t in years)
-  // Let's speed it up by 365x so 1 day = 1 year of yield in simulation? 
-  // No, let's stick to true financial math, but allow it to compound daily.
   const millisecondsPassed = now.getTime() - startDate.getTime();
   const daysPassed = millisecondsPassed / (1000 * 60 * 60 * 24);
   const yearsPassed = daysPassed / 365;
   
   let annualRate = 0;
   if (investment.rate_type === 'CDI') {
-    // Estimating CDI as Selic - 0.10%
     const cdi = Math.max(currentSelic - 0.10, 0); 
     annualRate = cdi * (investment.rate_value / 100);
   } else {
     annualRate = investment.rate_value;
   }
   
-  // Formula: Amount * (1 + annualRate/100) ^ years
   const currentAmount = investment.amount * Math.pow(1 + annualRate / 100, yearsPassed);
-  
   return currentAmount;
-};
-
-// Internal dynamic state for BRL strings
-type PortfolioBRL = {
-  invested: string;
-  current: string;
-  profit: string;
 };
 
 export function Investments() {
   const { profile, refreshProfile } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [selicRate, setSelicRate] = useState<number>(10.5); // Fallback
+  const [selicRate, setSelicRate] = useState<number>(10.5);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
-  
-  const [portfolioBRL, setPortfolioBRL] = useState<PortfolioBRL>({ invested: 'R$ 0,00', current: 'R$ 0,00', profit: 'R$ 0,00' });
+  const { formatValue: formatBRL } = useExchangeRate();
   
   // Form states
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -73,11 +56,7 @@ export function Investments() {
   const [investing, setInvesting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  
-  // Tab state
   const [activeTab, setActiveTab] = useState<'ativos' | 'resgatados'>('ativos');
-
-  // Auto-refresh yield display
   const [, setTick] = useState(0);
 
   const fetchSelic = async () => {
@@ -88,7 +67,7 @@ export function Investments() {
         setSelicRate(Number(data[0].valor));
       }
     } catch {
-      console.warn("Could not fetch SELIC from BCB, using fallback 10.50%");
+      console.warn("Using fallback SELIC 10.50%");
     }
   };
 
@@ -102,14 +81,9 @@ export function Investments() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        if (error.code === '42P01') {
-          setDbError(true);
-        } else {
-          console.error(error);
-        }
+        if (error.code === '42P01') setDbError(true);
         return;
       }
-      
       setInvestments(data || []);
       setDbError(false);
     } catch (err) {
@@ -122,27 +96,9 @@ export function Investments() {
   useEffect(() => {
     fetchSelic();
     fetchInvestments();
-    
-    // Refresh yield calculations every second
-    const interval = setInterval(() => {
-      setTick(t => t + 1);
-      updateBRLSummary();
-    }, 1000);
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(interval);
-  }, [profile, investments, selicRate]);
-
-  const updateBRLSummary = async () => {
-    const active = investments.filter(inv => !inv.redeemed_at);
-    const invested = active.reduce((acc, inv) => acc + inv.amount, 0);
-    const current = active.reduce((acc, inv) => acc + calculateCurrentAmount(inv, selicRate), 0);
-    const profit = current - invested;
-
-    setPortfolioBRL({
-      invested: await formatBRL(invested),
-      current: await formatBRL(current),
-      profit: await formatBRL(profit)
-    });
-  };
+  }, [profile]);
 
   const handleInvest = async () => {
     if (!profile || !selectedProduct) return;
@@ -507,7 +463,7 @@ CREATE POLICY "Users can update their own investments"
                 <span className="text-gray-500 font-medium">Investido</span>
                 <div className="text-right">
                   <span className="font-bold text-black block">{totalInvested.toFixed(2)} UR</span>
-                  <span className="text-[10px] text-gray-400 font-medium">{portfolioBRL.invested}</span>
+                  <span className="text-[10px] text-gray-400 font-medium">{formatBRL(totalInvested)}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
@@ -516,14 +472,14 @@ CREATE POLICY "Users can update their own investments"
                   <span className="font-black text-brand-orange text-lg block">
                     {totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
                   </span>
-                  <span className="text-xs text-brand-orange/60 font-bold">{portfolioBRL.current}</span>
+                  <span className="text-xs text-brand-orange/60 font-bold">{formatBRL(totalCurrentValue)}</span>
                 </div>
               </div>
               <div className="pt-3 border-t border-gray-100 flex justify-between items-center bg-green-50 p-3 rounded-lg">
                 <span className="text-green-700 font-bold text-sm">Lucro Acumulado</span>
                 <div className="text-right">
                   <span className="text-green-700 font-black block">+{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR</span>
-                  <span className="text-[10px] text-green-600 font-bold">{portfolioBRL.profit}</span>
+                  <span className="text-[10px] text-green-600 font-bold">{formatBRL(totalProfit)}</span>
                 </div>
               </div>
             </CardContent>

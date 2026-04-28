@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { supabase } from '../lib/supabase';
 import { Trophy, Medal, Crown } from 'lucide-react';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 
 type Profile = {
   id: string;
@@ -14,6 +15,7 @@ export function Ranking() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<string>('Todos');
+  const { formatValue: formatBRL } = useExchangeRate();
 
   const GRADES = [
     'Todos',
@@ -111,8 +113,13 @@ export function Ranking() {
                         )}
                       </div>
                     </div>
-                    <div className="text-xl font-black text-black">
-                      {profile.balance} <span className="text-sm font-medium text-gray-500 uppercase">UR</span>
+                    <div className="text-right">
+                      <div className="text-xl font-black text-black">
+                        {profile.balance} <span className="text-sm font-medium text-gray-400 uppercase">UR</span>
+                      </div>
+                      <div className="text-[10px] font-bold text-gray-400">
+                        {formatBRL(profile.balance)}
+                      </div>
                     </div>
                   </div>
                 );

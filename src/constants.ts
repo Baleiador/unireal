@@ -3,7 +3,7 @@ import { supabase } from './lib/supabase';
 export const CURRENCY_CONFIG = {
   NAME: 'Unireal',
   SYMBOL: 'UR',
-  DEFAULT_BRL_RATE: 0.10,
+  DEFAULT_BRL_RATE: 0.01,
   BRL_SYMBOL: 'R$',
 };
 

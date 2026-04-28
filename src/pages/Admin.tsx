@@ -29,7 +29,7 @@ export function Admin() {
   
   // Settings state
   const [activeTab, setActiveTab] = useState<'users' | 'settings'>('users');
-  const [exchangeRate, setExchangeRate] = useState<string>('0.10');
+  const [exchangeRate, setExchangeRate] = useState<string>('0.01');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successSettings, setSuccessSettings] = useState(false);
   const [dbError, setDbError] = useState<boolean>(false);
@@ -395,37 +395,57 @@ export function Admin() {
               <Settings className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Configuração Necessária</h3>
-              <p className="opacity-80">A tabela de configurações (settings) precisa ser criada ou liberada no Supabase.</p>
+              <h3 className="text-xl font-bold">Acesso Bloqueado (RLS)</h3>
+              <p className="opacity-80">O banco de dados recusou a gravação. Você precisa rodar o comando abaixo no SQL Editor do Supabase para liberar o acesso do Admin.</p>
             </div>
           </div>
           
-          <div className="bg-gray-900 rounded-2xl p-6 overflow-x-auto mb-6 border-4 border-red-100 shadow-inner">
+          <div className="bg-gray-900 rounded-2xl p-6 overflow-x-auto mb-6 border-4 border-red-100 shadow-xl">
+            <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
+              <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">SQL Editor Script</span>
+              <span className="text-red-400 text-[10px] font-bold px-2 py-0.5 rounded border border-red-400/30 uppercase">Executor Obrigatório</span>
+            </div>
             <pre className="text-blue-400 text-sm font-mono leading-relaxed">
-{`-- COPIE E COLE NO SQL EDITOR DO SUPABASE:
-
+{`-- 1. Crie a tabela se não existir
 CREATE TABLE IF NOT EXISTS public.settings (
     key text PRIMARY KEY,
     value jsonb NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- 2. Habilite a segurança
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
+-- 3. Limpe políticas antigas
 DROP POLICY IF EXISTS "Leitura pública" ON public.settings;
-DROP POLICY IF EXISTS "Admin modify" ON public.settings;
+DROP POLICY IF EXISTS "Admin full access" ON public.settings;
 
-CREATE POLICY "Leitura pública" ON public.settings FOR SELECT USING (true);
+-- 4. Permita que todos leiam a cotação
+CREATE POLICY "Leitura pública" ON public.settings 
+FOR SELECT USING (true);
 
-CREATE POLICY "Admin modify" ON public.settings FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
+-- 5. Permita que APENAS admins alterem (Dono ou Professor)
+CREATE POLICY "Admin full access" ON public.settings 
+FOR ALL 
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = auth.uid() AND is_admin = true
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = auth.uid() AND is_admin = true
+    )
 );`}
             </pre>
           </div>
           
-          <div className="flex items-center gap-3 text-red-700 bg-red-100/50 p-4 rounded-xl">
+          <div className="flex items-center gap-3 text-red-700 bg-red-100/50 p-4 rounded-xl border border-red-200">
             <CheckCircle className="w-5 h-5 shrink-0" />
-            <p className="text-sm font-medium">Após rodar esse código no Supabase, clique em salvar novamente.</p>
+            <p className="text-sm font-medium italic">Copie todo o código acima, cole no Painel SQL do Supabase e clique em "RUN". Depois volte aqui e tente salvar.</p>
           </div>
         </div>
       )}
