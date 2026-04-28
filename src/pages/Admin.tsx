@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Card, CardContent } from '../components/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users } from 'lucide-react';
 import { Navigate } from 'react-router';
 
 type Profile = {
@@ -26,6 +26,12 @@ export function Admin() {
   const [minting, setMinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  
+  // Settings state
+  const [activeTab, setActiveTab] = useState<'users' | 'settings'>('users');
+  const [exchangeRate, setExchangeRate] = useState<string>('0.10');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [successSettings, setSuccessSettings] = useState(false);
 
   // Protect route
   if (profile && !profile.is_admin) {
@@ -34,7 +40,50 @@ export function Admin() {
 
   useEffect(() => {
     fetchStudents();
+    fetchSettings();
   }, [profile?.id]);
+
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'exchange_rate')
+        .single();
+      
+      if (!error && data) {
+        setExchangeRate(data.value.toString());
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
+
+  const saveExchangeRate = async () => {
+    setSavingSettings(true);
+    setSuccessSettings(false);
+    try {
+      const rate = parseFloat(exchangeRate);
+      if (isNaN(rate) || rate <= 0) throw new Error("Cotação inválida");
+
+      const { error: settingsError } = await supabase
+        .from('settings')
+        .upsert({ 
+          key: 'exchange_rate', 
+          value: rate,
+          updated_at: new Date().toISOString()
+        });
+
+      if (settingsError) throw settingsError;
+      
+      setSuccessSettings(true);
+      setTimeout(() => setSuccessSettings(false), 3000);
+    } catch (err: any) {
+      alert("Erro ao salvar: " + err.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -132,82 +181,197 @@ export function Admin() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-            <PlusCircle className="w-8 h-8 text-brand-orange" />
-            Gerar Unireais
+            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : <Settings className="w-8 h-8 text-brand-orange" />}
+            {activeTab === 'users' ? 'Gerar Unireais' : 'Configurações'}
           </h1>
-          <p className="text-gray-500">Área exclusiva do professor para recompensar alunos.</p>
+          <p className="text-gray-500">
+            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : 'Gerencie os parâmetros globais da economia.'}
+          </p>
         </div>
-        <div className="bg-orange-50 px-4 py-2 rounded-xl border border-brand-orange/20 flex items-center gap-2">
-          <Coins className="w-5 h-5 text-brand-orange" />
-          <span className="text-sm font-bold text-brand-orange uppercase tracking-wider">Moedas Infinitas</span>
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'users' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Users className="w-4 h-4" />
+            Alunos
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'settings' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Settings className="w-4 h-4" />
+            Cotação
+          </button>
         </div>
       </header>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-            <div className="relative max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Buscar aluno pelo nome..."
-                className="pl-12 bg-white"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+      {activeTab === 'users' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  type="text"
+                  placeholder="Buscar aluno pelo nome..."
+                  className="pl-12 bg-white"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="p-12 text-center text-gray-500">Carregando lista de alunos...</div>
+            ) : filteredStudents.length === 0 ? (
+              <div className="p-12 text-center text-gray-500">Nenhum aluno encontrado.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 font-medium">Aluno</th>
+                      <th className="px-6 py-4 font-medium">Turma</th>
+                      <th className="px-6 py-4 font-medium">Saldo Atual</th>
+                      <th className="px-6 py-4 font-medium text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredStudents.map((student) => (
+                      <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
+                              {student.full_name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="font-semibold text-black">{student.full_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-gray-600">{student.grade || '-'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-black">{student.balance} UR</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button 
+                            size="sm" 
+                            onClick={() => openModal(student)}
+                            className="shadow-sm"
+                          >
+                            <PlusCircle className="w-4 h-4 mr-2" />
+                            Recompensar
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card>
+            <CardHeader className="p-6 border-b border-gray-100">
+              <CardTitle className="text-xl flex items-center gap-2">
+                <TrendingUpDown className="w-6 h-6 text-brand-orange" />
+                Cotação Sugerida: Unireal ⇄ Real (BRL)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 space-y-8">
+              <div className="flex flex-col md:flex-row items-center gap-10">
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Valor de 1 Unireal em Real</label>
+                  <div className="relative">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xl">R$</span>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0.01"
+                      className="pl-16 text-3xl font-black h-24 bg-gray-50 border-gray-200 focus:bg-white"
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(e.target.value)}
+                    />
+                  </div>
+                  <p className="mt-4 text-sm text-gray-500 leading-relaxed">
+                    Este valor define a conversão exibida no dashboard dos alunos. 
+                    <br /><strong>Ex: 0.10</strong> significa que cada 10 UR valem R$ 1,00.
+                  </p>
+                </div>
+
+                <div className="w-full md:w-80 p-8 bg-brand-orange/5 rounded-3xl border border-brand-orange/10 flex flex-col items-center justify-center text-center">
+                  <span className="text-brand-orange text-xs font-black uppercase tracking-widest mb-4">Prévia do Câmbio</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center">
+                      <span className="text-3xl font-black text-brand-orange">1</span>
+                      <span className="text-[10px] font-bold text-brand-orange/60 uppercase">Unireal</span>
+                    </div>
+                    <div className="h-8 w-px bg-brand-orange/20" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-3xl font-black text-black">R$ {parseFloat(exchangeRate || '0').toFixed(2)}</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Reais</span>
+                    </div>
+                  </div>
+                  <div className="mt-6 w-full pt-6 border-t border-brand-orange/10">
+                    <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
+                      <span>10 UR</span>
+                      <span className="text-black">R$ {(10 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-gray-500">
+                      <span>100 UR</span>
+                      <span className="text-black">R$ {(100 * parseFloat(exchangeRate || '0')).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end border-t border-gray-100 pt-8">
+                <Button 
+                  size="lg"
+                  onClick={saveExchangeRate} 
+                  disabled={savingSettings}
+                  className="px-10 h-16 rounded-2xl text-lg font-black shadow-lg shadow-brand-orange/20 flex items-center gap-3 transition-all hover:scale-105 active:scale-95"
+                >
+                  {savingSettings ? 'Processando...' : (
+                    <>
+                      {successSettings ? <CheckCircle className="w-6 h-6" /> : <Save className="w-6 h-6" />}
+                      {successSettings ? 'Salvo com sucesso!' : 'Salvar Alterações'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex gap-4">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                <Settings className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-blue-900 mb-1 uppercase text-xs tracking-wider">Gestão Econômica</h4>
+                <p className="text-sm text-blue-800/70 leading-relaxed">
+                  Ajuste a taxa de acordo com a inflação interna da escola. Se os alunos tiverem muitas moedas, aumente o valor (UR) dos itens ou reduza a cotação.
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-green-50 rounded-3xl border border-green-100 flex gap-4">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-green-600 shadow-sm shrink-0">
+                <TrendingUpDown className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-green-900 mb-1 uppercase text-xs tracking-wider">Transparência</h4>
+                <p className="text-sm text-green-800/70 leading-relaxed">
+                  A nova cotação será aplicada instantaneamente no Dashboard de todos os alunos, ajudando-os a planejar suas compras para a feira.
+                </p>
+              </div>
             </div>
           </div>
-
-          {loading ? (
-            <div className="p-12 text-center text-gray-500">Carregando lista de alunos...</div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">Nenhum aluno encontrado.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                    <th className="px-6 py-4 font-medium">Aluno</th>
-                    <th className="px-6 py-4 font-medium">Turma</th>
-                    <th className="px-6 py-4 font-medium">Saldo Atual</th>
-                    <th className="px-6 py-4 font-medium text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
-                            {student.full_name.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-semibold text-black">{student.full_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-600">{student.grade || '-'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-bold text-black">{student.balance} UR</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button 
-                          size="sm" 
-                          onClick={() => openModal(student)}
-                          className="shadow-sm"
-                        >
-                          <PlusCircle className="w-4 h-4 mr-2" />
-                          Recompensar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* Minting Modal */}
       {selectedStudent && (

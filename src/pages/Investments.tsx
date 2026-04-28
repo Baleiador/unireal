@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle } from 'lucide-react';
+import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown } from 'lucide-react';
+import { formatBRL } from '../constants';
 
 type Investment = {
   id: string;
@@ -50,12 +51,21 @@ const calculateCurrentAmount = (investment: Investment, currentSelic: number) =>
   return currentAmount;
 };
 
+// Internal dynamic state for BRL strings
+type PortfolioBRL = {
+  invested: string;
+  current: string;
+  profit: string;
+};
+
 export function Investments() {
   const { profile, refreshProfile } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [selicRate, setSelicRate] = useState<number>(10.5); // Fallback
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
+  
+  const [portfolioBRL, setPortfolioBRL] = useState<PortfolioBRL>({ invested: 'R$ 0,00', current: 'R$ 0,00', profit: 'R$ 0,00' });
   
   // Form states
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -114,9 +124,25 @@ export function Investments() {
     fetchInvestments();
     
     // Refresh yield calculations every second
-    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+      updateBRLSummary();
+    }, 1000);
     return () => clearInterval(interval);
-  }, [profile]);
+  }, [profile, investments, selicRate]);
+
+  const updateBRLSummary = async () => {
+    const active = investments.filter(inv => !inv.redeemed_at);
+    const invested = active.reduce((acc, inv) => acc + inv.amount, 0);
+    const current = active.reduce((acc, inv) => acc + calculateCurrentAmount(inv, selicRate), 0);
+    const profit = current - invested;
+
+    setPortfolioBRL({
+      invested: await formatBRL(invested),
+      current: await formatBRL(current),
+      profit: await formatBRL(profit)
+    });
+  };
 
   const handleInvest = async () => {
     if (!profile || !selectedProduct) return;
@@ -479,17 +505,26 @@ CREATE POLICY "Users can update their own investments"
             <CardContent className="p-5 flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-500 font-medium">Investido</span>
-                <span className="font-bold text-black">{totalInvested.toFixed(2)} UR</span>
+                <div className="text-right">
+                  <span className="font-bold text-black block">{totalInvested.toFixed(2)} UR</span>
+                  <span className="text-[10px] text-gray-400 font-medium">{portfolioBRL.invested}</span>
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500 font-medium">Valor Bruto Novo</span>
-                <span className="font-black text-brand-orange text-lg">
-                  {totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
-                </span>
+                <div className="text-right">
+                  <span className="font-black text-brand-orange text-lg block">
+                    {totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
+                  </span>
+                  <span className="text-xs text-brand-orange/60 font-bold">{portfolioBRL.current}</span>
+                </div>
               </div>
               <div className="pt-3 border-t border-gray-100 flex justify-between items-center bg-green-50 p-3 rounded-lg">
                 <span className="text-green-700 font-bold text-sm">Lucro Acumulado</span>
-                <span className="text-green-700 font-black">+{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR</span>
+                <div className="text-right">
+                  <span className="text-green-700 font-black block">+{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR</span>
+                  <span className="text-[10px] text-green-600 font-bold">{portfolioBRL.profit}</span>
+                </div>
               </div>
             </CardContent>
           </Card>

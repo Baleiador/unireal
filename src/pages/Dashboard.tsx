@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
 import { Link } from 'react-router';
+import { formatBRL, getLiveRate } from '../constants';
 
 type Transaction = {
   id: string;
@@ -19,12 +20,24 @@ export function Dashboard() {
   const { profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveRate, setLiveRate] = useState<number>(0.10);
+  const [formattedBalance, setFormattedBalance] = useState<string>('R$ 0,00');
 
   useEffect(() => {
     if (profile) {
       fetchTransactions();
+      updateLiveValues();
     }
   }, [profile]);
+
+  const updateLiveValues = async () => {
+    if (profile) {
+      const rate = await getLiveRate();
+      setLiveRate(rate);
+      const formatted = await formatBRL(profile.balance || 0);
+      setFormattedBalance(formatted);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -74,6 +87,11 @@ export function Dashboard() {
               <p className="text-white/80 font-medium tracking-wide uppercase text-sm">
                 {profile?.is_admin ? 'Moedas Infinitas' : 'Unireais'}
               </p>
+              {!profile?.is_admin && (
+                <p className="text-white/60 text-sm mt-3 font-medium bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-md">
+                  Equivale a <span className="text-white font-bold">{formattedBalance}</span> para a feira
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -130,49 +148,93 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Últimas Movimentações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
-          ) : transactions.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Nenhuma movimentação recente.</div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {transactions.map((tx) => {
-                const isReceived = tx.receiver_id === profile?.id;
-                return (
-                  <div key={tx.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        isReceived ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-                      }`}>
-                        {isReceived ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Transactions */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Últimas Movimentações</CardTitle>
+              <Link to="/transfer" className="text-brand-orange text-sm font-bold hover:underline">Ver tudo</Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-8 text-center text-gray-500">Carregando...</div>
+              ) : transactions.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">Nenhuma movimentação recente.</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {transactions.map((tx) => {
+                    const isReceived = tx.receiver_id === profile?.id;
+                    return (
+                      <div key={tx.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            isReceived ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          }`}>
+                            {isReceived ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-black">
+                              {isReceived ? 'Recebido de' : 'Enviado para'} {isReceived ? tx.sender?.full_name : tx.receiver?.full_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(tx.created_at).toLocaleDateString('pt-BR', {
+                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`text-lg font-bold ${isReceived ? 'text-green-600' : 'text-red-600'}`}>
+                          {isReceived ? '+' : '-'}{tx.amount} UR
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-black">
-                          {isReceived ? 'Recebido de' : 'Enviado para'} {isReceived ? tx.sender?.full_name : tx.receiver?.full_name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(tx.created_at).toLocaleDateString('pt-BR', {
-                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`text-lg font-bold ${isReceived ? 'text-green-600' : 'text-red-600'}`}>
-                      {isReceived ? '+' : '-'}{tx.amount} UR
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Exchange Info Widget */}
+        <Card className="bg-brand-orange/5 border-brand-orange/10 h-fit">
+          <CardHeader>
+            <CardTitle className="text-brand-orange flex items-center gap-2">
+              <TrendingUpDown className="w-5 h-5" />
+              Câmbio Sugerido
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center p-4 bg-white rounded-2xl shadow-sm border border-brand-orange/10">
+              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Cotação Atual</p>
+              <p className="text-2xl font-black text-black">1 UR = R$ {liveRate.toFixed(2)}</p>
+              <p className="text-[10px] text-gray-400 mt-1 italic">Cada Unireal vale R$ {liveRate.toFixed(2)} reais</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-gray-700">Tabela de Preços (Simulação)</h4>
+              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-sm text-gray-500">Snack / Doce (50 UR)</span>
+                <span className="text-brand-orange font-black">R$ {(50 * liveRate).toFixed(2)}</span>
+              </div>
+              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-sm text-gray-500">Bebida (40 UR)</span>
+                <span className="text-brand-orange font-black">R$ {(40 * liveRate).toFixed(2)}</span>
+              </div>
+              <div className="p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between">
+                <span className="text-sm text-gray-500">Item Colecionável (200 UR)</span>
+                <span className="text-brand-orange font-black">R$ {(200 * liveRate).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-orange-100 rounded-xl">
+              <p className="text-[11px] text-brand-orange leading-relaxed">
+                Este câmbio ajuda você a entender o valor real do seu esforço. Use seus <strong>Investimentos</strong> para fazer esse valor crescer até o dia da feira!
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
