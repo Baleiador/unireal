@@ -32,6 +32,7 @@ export function Admin() {
   const [exchangeRate, setExchangeRate] = useState<string>('0.10');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successSettings, setSuccessSettings] = useState(false);
+  const [dbError, setDbError] = useState<boolean>(false);
 
   // Protect route
   if (profile && !profile.is_admin) {
@@ -51,8 +52,16 @@ export function Admin() {
         .eq('key', 'exchange_rate')
         .single();
       
-      if (!error && data) {
+      if (error) {
+        if (error.code === '42P01' || error.message.includes('row-level security')) {
+          setDbError(true);
+        }
+        return;
+      }
+      
+      if (data) {
         setExchangeRate(data.value.toString());
+        setDbError(false);
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -74,8 +83,12 @@ export function Admin() {
           updated_at: new Date().toISOString()
         });
 
-      if (settingsError) throw settingsError;
+      if (settingsError) {
+        setDbError(true);
+        throw settingsError;
+      }
       
+      setDbError(false);
       setSuccessSettings(true);
       setTimeout(() => setSuccessSettings(false), 3000);
     } catch (err: any) {
@@ -371,6 +384,48 @@ export function Admin() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && dbError && (
+        <div className="mt-8 p-8 bg-red-50 border-2 border-red-200 rounded-3xl animate-in zoom-in-95 duration-300">
+          <div className="flex items-center gap-4 text-red-600 mb-6">
+            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
+              <Settings className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Configuração Necessária</h3>
+              <p className="opacity-80">A tabela de configurações (settings) precisa ser criada ou liberada no Supabase.</p>
+            </div>
+          </div>
+          
+          <div className="bg-gray-900 rounded-2xl p-6 overflow-x-auto mb-6 border-4 border-red-100 shadow-inner">
+            <pre className="text-blue-400 text-sm font-mono leading-relaxed">
+{`-- COPIE E COLE NO SQL EDITOR DO SUPABASE:
+
+CREATE TABLE IF NOT EXISTS public.settings (
+    key text PRIMARY KEY,
+    value jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Leitura pública" ON public.settings;
+DROP POLICY IF EXISTS "Admin modify" ON public.settings;
+
+CREATE POLICY "Leitura pública" ON public.settings FOR SELECT USING (true);
+
+CREATE POLICY "Admin modify" ON public.settings FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
+);`}
+            </pre>
+          </div>
+          
+          <div className="flex items-center gap-3 text-red-700 bg-red-100/50 p-4 rounded-xl">
+            <CheckCircle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">Após rodar esse código no Supabase, clique em salvar novamente.</p>
           </div>
         </div>
       )}
