@@ -180,12 +180,16 @@ export function Investments() {
     try {
       const currentVal = calculateCurrentAmount(inv, selicRate);
       
+      // Using Math.round because some users have balance/redeemed_amount as INTEGER in the database.
+      // If the database is INTEGER, it will fail with "invalid input syntax for type integer" if we send decimals.
+      const roundedCurrentVal = Math.round(currentVal);
+      
       // Update investment to redeemed
       const { error: updateInvError } = await supabase
         .from('investments')
         .update({ 
           redeemed_at: new Date().toISOString(),
-          redeemed_amount: currentVal
+          redeemed_amount: roundedCurrentVal
         })
         .eq('id', inv.id);
         
@@ -195,15 +199,15 @@ export function Investments() {
       const { data: userData, error: userError } = await supabase.from('profiles').select('balance').eq('id', profile?.id).single();
       if (userError) throw userError;
       
-      // Using Math.floor to keep precision to 2 decimal places and avoid float issues
-      const newBalance = Math.floor(((userData?.balance || 0) + currentVal) * 100) / 100;
+      // Ensure balance is also an integer to avoid errors in the profiles table
+      const newBalance = Math.round((userData?.balance || 0) + currentVal);
       
       const { error: profileUpdateError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', profile?.id);
       if (profileUpdateError) throw profileUpdateError;
       
       await fetchInvestments();
       await refreshProfile(); // Refresh context
-      alert(`Você resgatou ${currentVal.toFixed(2)} UR com sucesso!`);
+      alert(`Você resgatou ${roundedCurrentVal} UR com sucesso!`);
     } catch(err: any) {
       console.error(err);
       alert(`Erro ao resgatar: ${err?.message || 'Desconhecido'}`);
@@ -227,7 +231,8 @@ export function Investments() {
           <p className="mb-4">Para usar os investimentos, você precisa criar a tabela no banco de dados.</p>
           <p className="mb-2 font-medium">Rode este código no "SQL Editor" do Supabase:</p>
           <pre className="bg-red-900/10 p-4 rounded-xl text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-{`CREATE TABLE public.investments (
+{`-- 1. Criar a tabela de investimentos (usando numeric para suportar decimais)
+CREATE TABLE public.investments (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
   type text not null,
@@ -239,8 +244,14 @@ export function Investments() {
   redeemed_amount numeric
 );
 
+-- 2. CORRIGIR TABELA PROFILES (IMPORTANTE para evitar erro de syntax integer)
+-- Se receber erro ao resgatar, rode este comando para permitir decimais no saldo:
+ALTER TABLE public.profiles ALTER COLUMN balance TYPE numeric;
+
+-- 3. Habilitar RLS
 ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
 
+-- 4. Criar Políticas
 CREATE POLICY "Users can view their own investments" 
   ON public.investments FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own investments" 

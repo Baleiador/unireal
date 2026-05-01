@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -25,9 +25,20 @@ type Transaction = {
   receiver: { full_name: string };
 };
 
+type TransactionItem = {
+  id: string;
+  amount: number;
+  created_at: string;
+  type: 'transfer' | 'redemption';
+  is_received: boolean;
+  participant_name?: string;
+  category_name?: string;
+};
+
 export function Dashboard() {
   const { profile } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [activities, setActivities] = useState<TransactionItem[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const { rate: liveRate, formatValue: formatBRL } = useExchangeRate();
   const [calcValue, setCalcValue] = useState<string>('');
@@ -38,11 +49,11 @@ export function Dashboard() {
 
   useEffect(() => {
     if (profile) {
-      fetchTransactions();
+      fetchActivities();
       fetchInvestments();
       fetchSelic();
     }
-  }, [profile]);
+  }, [profile, showAll]);
 
   // Update chart every 5 seconds for "real-time" feel
   useEffect(() => {
@@ -52,9 +63,11 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchActivities = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      // Fetch transfers
+      const { data: transfers, error: txError } = await supabase
         .from('transactions')
         .select(`
           id, amount, created_at, sender_id, receiver_id,
@@ -63,12 +76,46 @@ export function Dashboard() {
         `)
         .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(showAll ? 100 : 5);
 
-      if (error) throw error;
-      setTransactions(data as unknown as Transaction[]);
+      if (txError) throw txError;
+
+      // Fetch redemptions
+      const { data: redemptions, error: invError } = await supabase
+        .from('investments')
+        .select('id, redeemed_amount, redeemed_at, type')
+        .eq('user_id', profile?.id)
+        .not('redeemed_at', 'is', null)
+        .order('redeemed_at', { ascending: false })
+        .limit(showAll ? 100 : 5);
+
+      if (invError) throw invError;
+
+      // Map and unify
+      const unified: TransactionItem[] = [
+        ...(transfers || []).map((tx: any) => ({
+          id: tx.id,
+          amount: tx.amount,
+          created_at: tx.created_at,
+          type: 'transfer' as const,
+          is_received: tx.receiver_id === profile?.id,
+          participant_name: (tx.receiver_id === profile?.id 
+            ? (Array.isArray(tx.sender) ? tx.sender[0]?.full_name : tx.sender?.full_name)
+            : (Array.isArray(tx.receiver) ? tx.receiver[0]?.full_name : tx.receiver?.full_name))
+        })),
+        ...(redemptions || []).map(inv => ({
+          id: inv.id,
+          amount: inv.redeemed_amount || 0,
+          created_at: inv.redeemed_at!,
+          type: 'redemption' as const,
+          is_received: true, // Redemptions always add money to balance
+          category_name: inv.type
+        }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setActivities(showAll ? unified : unified.slice(0, 5));
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('Error fetching activities:', error);
     } finally {
       setLoading(false);
     }
@@ -399,43 +446,87 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Recent Transactions */}
+        {/* Recent Activities */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Últimas Movimentações</CardTitle>
-              <Link to="/transfer" className="text-brand-orange text-sm font-bold hover:underline">Ver tudo</Link>
+          <Card className="border-none shadow-md overflow-hidden">
+            <CardHeader className="bg-gray-50/50 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Fluxo de Caixa</CardTitle>
+                  <p className="text-xs text-gray-500 mt-1">Histórico unificado de transfers e investimentos.</p>
+                </div>
+                <button 
+                  onClick={() => setShowAll(!showAll)}
+                  className="text-brand-orange text-xs font-black uppercase tracking-widest bg-orange-100 hover:bg-brand-orange hover:text-white px-3 py-1.5 rounded-full transition-all"
+                >
+                  {showAll ? 'Ver menos' : 'Ver tudo'}
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Carregando...</div>
-              ) : transactions.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">Nenhuma movimentação recente.</div>
+                <div className="p-12 text-center text-gray-400 font-medium">
+                  <div className="animate-spin w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full mx-auto mb-4" />
+                  Sincronizando atividades...
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                    <Clock className="w-8 h-8" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-sm">Nenhuma movimentação para exibir.</p>
+                </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {transactions.map((tx) => {
-                    const isReceived = tx.receiver_id === profile?.id;
+                  {activities.map((act) => {
+                    const isRedemption = act.type === 'redemption';
                     return (
-                      <div key={tx.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div key={act.id} className="group p-5 flex items-center justify-between hover:bg-gray-50 transition-all">
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                            isReceived ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
+                            isRedemption 
+                              ? 'bg-purple-50 text-purple-600' 
+                              : act.is_received ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
                           }`}>
-                            {isReceived ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                            {isRedemption ? (
+                              <TrendingUp className="w-6 h-6" />
+                            ) : act.is_received ? (
+                              <ArrowDownLeft className="w-6 h-6" />
+                            ) : (
+                              <ArrowUpRight className="w-6 h-6" />
+                            )}
                           </div>
                           <div>
-                            <p className="font-semibold text-black">
-                              {isReceived ? 'Recebido de' : 'Enviado para'} {isReceived ? tx.sender?.full_name : tx.receiver?.full_name}
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-gray-900">
+                                {isRedemption 
+                                  ? 'Resgate de Ativo' 
+                                  : act.is_received ? 'Recebido de' : 'Enviado para'}
+                              </p>
+                              {isRedemption && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[9px] font-black uppercase rounded-md tracking-wider">
+                                  {act.category_name}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium">
+                              {isRedemption ? 'Rendimento de capital' : act.participant_name}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(tx.created_at).toLocaleDateString('pt-BR', {
+                            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-tight">
+                              {new Date(act.created_at).toLocaleDateString('pt-BR', {
                                 day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                               })}
                             </p>
                           </div>
                         </div>
-                        <div className={`text-lg font-bold ${isReceived ? 'text-green-600' : 'text-red-600'}`}>
-                          {isReceived ? '+' : '-'}{tx.amount} UR
+                        <div className="text-right">
+                          <div className={`text-lg font-black tracking-tighter ${
+                            isRedemption || act.is_received ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {isRedemption || act.is_received ? '+' : '-'}{act.amount.toLocaleString('en-US')}
+                            <span className="ml-1 text-[10px] uppercase font-bold">UR</span>
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase">{isRedemption ? 'Lucro Bruto' : 'Transferência'}</p>
                         </div>
                       </div>
                     );
