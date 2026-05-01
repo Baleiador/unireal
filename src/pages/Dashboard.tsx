@@ -221,7 +221,7 @@ export function Dashboard() {
               {calcValue && (
                 <div className="p-3 bg-brand-orange text-white rounded-xl text-center animate-in zoom-in-95 duration-200">
                   <p className="text-xs font-medium uppercase opacity-80">Valor em Reais</p>
-                  <p className="text-xl font-black">R$ {(Number(calcValue) * liveRate).toFixed(2)}</p>
+                  <p className="text-xl font-black">{formatBRL(Number(calcValue))}</p>
                 </div>
               )}
             </div>

@@ -413,8 +413,9 @@ CREATE TABLE IF NOT EXISTS public.settings (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- 2. Habilite a segurança
+-- 2. Habilite a segurança e replicação (Obrigatório para Tempo Real)
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings REPLICA IDENTITY FULL;
 
 -- 3. Limpe políticas antigas
 DROP POLICY IF EXISTS "Leitura pública" ON public.settings;
