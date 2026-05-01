@@ -6,6 +6,14 @@ import { supabase } from '../lib/supabase';
 import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { 
+  Investment, 
+  calculateCurrentAmount, 
+  getOrganicOscillation, 
+  getVolatilityByType,
+  getInvestmentColor 
+} from '../lib/investment-utils';
 
 type Transaction = {
   id: string;
@@ -23,12 +31,25 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const { rate: liveRate, formatValue: formatBRL } = useExchangeRate();
   const [calcValue, setCalcValue] = useState<string>('');
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [selicRate, setSelicRate] = useState<number>(10.5);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (profile) {
       fetchTransactions();
+      fetchInvestments();
+      fetchSelic();
     }
   }, [profile]);
+
+  // Update chart every 5 seconds for "real-time" feel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(t => t + 1);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchTransactions = async () => {
     try {
@@ -51,6 +72,63 @@ export function Dashboard() {
       setLoading(false);
     }
   };
+
+  const fetchInvestments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('user_id', profile?.id)
+        .is('redeemed_at', null);
+
+      if (error) throw error;
+      setInvestments(data as Investment[]);
+    } catch (error) {
+      console.error('Error fetching investments:', error);
+    }
+  };
+
+  const fetchSelic = async () => {
+    try {
+      const res = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].valor) {
+        setSelicRate(Number(data[0].valor));
+      }
+    } catch {
+      console.warn("Using fallback SELIC 10.50%");
+    }
+  };
+
+  // Generate multi-series chart data
+  const getChartData = () => {
+    if (investments.length === 0) return [];
+    
+    const data = [];
+    const now = Date.now();
+    
+    // Generate 15 points (every 2 minutes for 30 mins)
+    for (let i = 0; i <= 15; i++) {
+      const timeOffset = (15 - i) * 120; // Seconds back
+      const virtualSeconds = (now / 1000) - timeOffset;
+      const point: any = {
+        time: i === 15 ? 'Agora' : `-${(15 - i) * 2}m`,
+      };
+
+      investments.forEach(inv => {
+        const volatility = getVolatilityByType(inv.type);
+        const seed = inv.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        // Base value for the point (simplified normalized to 100 on buy date, or just oscillating around 100 for visual)
+        const wave = getOrganicOscillation(virtualSeconds, seed, volatility || 0.02);
+        point[inv.id] = Number((100 * (1 + wave)).toFixed(2));
+      });
+      
+      data.push(point);
+    }
+    return data;
+  };
+
+  const chartData = getChartData();
 
   return (
     <div className="space-y-8">
@@ -140,6 +218,78 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Investment Evolution Chart */}
+        {!profile?.is_admin && investments.length > 0 && (
+          <div className="lg:col-span-3">
+            <Card className="border-none shadow-md overflow-hidden">
+              <CardHeader className="bg-gray-50/50 pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <TrendingUpDown className="w-5 h-5 text-brand-orange" />
+                      Evolução da Carteira (30m)
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Acompanhe o desempenho de todos os seus ativos em tempo real (Base 100).
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
+                      <XAxis 
+                        dataKey="time" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#9ca3af' }} 
+                      />
+                      <YAxis 
+                        domain={['auto', 'auto']} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#9ca3af' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          borderRadius: '12px', 
+                          border: 'none', 
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        iconType="circle"
+                        formatter={(value) => {
+                          const inv = investments.find(i => i.id === value);
+                          return <span className="text-xs font-bold text-gray-600">{inv?.type}</span>;
+                        }}
+                      />
+                      {investments.map(inv => (
+                        <Line
+                          key={inv.id}
+                          type="monotone"
+                          dataKey={inv.id}
+                          name={inv.id}
+                          stroke={getInvestmentColor(inv.type)}
+                          strokeWidth={3}
+                          dot={false}
+                          activeDot={{ r: 6 }}
+                          animationDuration={500}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Recent Transactions */}
         <div className="lg:col-span-2">
           <Card>

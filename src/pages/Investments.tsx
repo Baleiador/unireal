@@ -7,70 +7,11 @@ import { supabase } from '../lib/supabase';
 import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown, Info } from 'lucide-react';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-type Investment = {
-  id: string;
-  type: string; // 'CDB', 'LCI', 'LCA'
-  amount: number;
-  rate_type: string; // 'FIXED', 'CDI'
-  rate_value: number; // e.g. 110 (110% CDI) or 12.5 (12.5% a.a)
-  created_at: string;
-  redeemed_at: string | null;
-  redeemed_amount: number | null;
-};
-
-// Calculate current value with organic oscillation
-const getOrganicOscillation = (seconds: number, seed: number, volatility: number) => {
-  // Overlay 4 waves with different frequencies to create a professional "noisy" look
-  const wave1 = Math.sin((seconds / 47.3) + seed);        // Long cycle
-  const wave2 = Math.sin((seconds / 13.7) + seed * 1.3) * 0.4; // Medium cycle
-  const wave3 = Math.cos((seconds / 5.9) + seed * 0.7) * 0.2;  // Short cycle
-  const wave4 = Math.sin((seconds / 2.3) + seed * 2.1) * 0.08; // Micro jitter
-  
-  const combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
-  return combined * volatility;
-};
-
-// Calculate yield based on time elapsed with volatility for high-risk assets
-const calculateCurrentAmount = (investment: Investment, currentSelic: number) => {
-  if (investment.redeemed_at && investment.redeemed_amount) {
-    return investment.redeemed_amount;
-  }
-  
-  const startDate = new Date(investment.created_at);
-  const now = new Date();
-  const millisecondsPassed = now.getTime() - startDate.getTime();
-  const secondsPassed = millisecondsPassed / 1000;
-  const daysPassed = millisecondsPassed / (1000 * 60 * 60 * 24);
-  const yearsPassed = daysPassed / 365;
-  
-  let annualRate = 0;
-  let volatility = 0;
-
-  // Define volatility based on type
-  if (investment.type.includes('Criptoativo')) volatility = 0.35; // 35% swing
-  if (investment.type.includes('Ações High')) volatility = 0.20; // 20% swing
-  if (investment.type.includes('Venture Capital')) volatility = 0.50; // 50% swing
-
-  if (investment.rate_type === 'CDI') {
-    const cdi = Math.max(currentSelic - 0.10, 0); 
-    annualRate = cdi * (investment.rate_value / 100);
-  } else {
-    annualRate = investment.rate_value;
-  }
-  
-  // Base growth (deterministic)
-  let currentAmount = investment.amount * Math.pow(1 + annualRate / 100, yearsPassed);
-
-  // Apply Volatility if applicable
-  if (volatility > 0) {
-    const seed = investment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const wave = getOrganicOscillation(secondsPassed, seed, volatility);
-    currentAmount = currentAmount * (1 + wave);
-  }
-
-  return currentAmount;
-};
+import { 
+  Investment, 
+  calculateCurrentAmount, 
+  getOrganicOscillation, 
+} from '../lib/investment-utils';
 
 export function Investments() {
   const { profile, refreshProfile } = useAuth();
