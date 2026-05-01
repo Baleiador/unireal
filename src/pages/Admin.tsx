@@ -402,45 +402,47 @@ export function Admin() {
           
           <div className="bg-gray-900 rounded-2xl p-6 overflow-x-auto mb-6 border-4 border-red-100 shadow-xl">
             <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
-              <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">SQL Editor Script</span>
+              <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">SQL Editor Script (V3)</span>
               <span className="text-red-400 text-[10px] font-bold px-2 py-0.5 rounded border border-red-400/30 uppercase">Executor Obrigatório</span>
             </div>
             <pre className="text-blue-400 text-sm font-mono leading-relaxed">
-{`-- 1. Crie a tabela se não existir
+{`-- 1. Criar função de verificação de admin (Bypassa RLS)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND is_admin = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. Garantir que a tabela existe
 CREATE TABLE IF NOT EXISTS public.settings (
     key text PRIMARY KEY,
     value jsonb NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- 2. Habilite a segurança e replicação (Obrigatório para Tempo Real)
+-- 3. Habilitar RLS e Tempo Real
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings REPLICA IDENTITY FULL;
 
--- 3. Limpe políticas antigas
+-- 4. Limpar políticas antigas
 DROP POLICY IF EXISTS "Leitura pública" ON public.settings;
 DROP POLICY IF EXISTS "Admin full access" ON public.settings;
 
--- 4. Permita que todos leiam a cotação
+-- 5. Criar novas políticas usando a função segura
 CREATE POLICY "Leitura pública" ON public.settings 
 FOR SELECT USING (true);
 
--- 5. Permita que APENAS admins alterem (Dono ou Professor)
 CREATE POLICY "Admin full access" ON public.settings 
-FOR ALL 
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND is_admin = true
-    )
-)
-WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND is_admin = true
-    )
-);`}
+FOR ALL TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
+-- 6. Garantir que você é um Admin (SUBSTITUA SEU-ID ABAIXO)
+-- UPDATE public.profiles SET is_admin = true WHERE id = auth.uid();`}
             </pre>
           </div>
           

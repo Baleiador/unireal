@@ -203,7 +203,7 @@ export function Dashboard() {
                 <span className="text-brand-orange font-bold text-xl">=</span>
                 <span className="text-3xl font-black text-black">R$ {liveRate.toFixed(2)}</span>
               </div>
-              <p className="text-[10px] text-gray-400 mt-2 font-bold italic tracking-tight">Cada 100 Unireais valem R$ 1,00 real</p>
+              <p className="text-[10px] text-gray-400 mt-2 font-bold italic tracking-tight">Cada 100 Unireais valem {formatBRL(100)}</p>
             </div>
 
             <div className="space-y-3">
