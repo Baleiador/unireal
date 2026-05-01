@@ -19,6 +19,18 @@ type Investment = {
   redeemed_amount: number | null;
 };
 
+// Calculate current value with organic oscillation
+const getOrganicOscillation = (seconds: number, seed: number, volatility: number) => {
+  // Overlay 4 waves with different frequencies to create a professional "noisy" look
+  const wave1 = Math.sin((seconds / 47.3) + seed);        // Long cycle
+  const wave2 = Math.sin((seconds / 13.7) + seed * 1.3) * 0.4; // Medium cycle
+  const wave3 = Math.cos((seconds / 5.9) + seed * 0.7) * 0.2;  // Short cycle
+  const wave4 = Math.sin((seconds / 2.3) + seed * 2.1) * 0.08; // Micro jitter
+  
+  const combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
+  return combined * volatility;
+};
+
 // Calculate yield based on time elapsed with volatility for high-risk assets
 const calculateCurrentAmount = (investment: Investment, currentSelic: number) => {
   if (investment.redeemed_at && investment.redeemed_amount) {
@@ -52,15 +64,9 @@ const calculateCurrentAmount = (investment: Investment, currentSelic: number) =>
 
   // Apply Volatility if applicable
   if (volatility > 0) {
-    // We use a deterministic "wave" so the price follows a path based on the investment ID and time.
-    // This allows the value to go DOWN below the principal.
     const seed = investment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    // Large wave for cycles
-    const wave = Math.sin((secondsPassed / 40) + seed) * volatility;
-    // Faster noise for market "jitter"
-    const noise = Math.sin((secondsPassed / 5) + seed * 1.5) * (volatility / 4);
-    
-    currentAmount = currentAmount * (1 + wave + noise);
+    const wave = getOrganicOscillation(secondsPassed, seed, volatility);
+    currentAmount = currentAmount * (1 + wave);
   }
 
   return currentAmount;
@@ -329,9 +335,8 @@ CREATE POLICY "Users can update their own investments"
       const timeOffset = (30 - i) * 60; // Offset in seconds (every minute for 30 mins)
       const virtualSeconds = (now / 1000) - timeOffset;
       
-      const wave = Math.sin((virtualSeconds / 40) + seed) * volatility;
-      const noise = Math.sin((virtualSeconds / 5) + seed * 1.5) * (volatility / 4);
-      const value = 100 * (1 + wave + noise);
+      const wave = getOrganicOscillation(virtualSeconds, seed, volatility);
+      const value = 100 * (1 + wave);
       
       data.push({
         time: i === 30 ? 'Agora' : `-${30 - i}m`,
