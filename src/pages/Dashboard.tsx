@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   Investment, 
   calculateCurrentAmount, 
@@ -32,6 +32,7 @@ export function Dashboard() {
   const { rate: liveRate, formatValue: formatBRL } = useExchangeRate();
   const [calcValue, setCalcValue] = useState<string>('');
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [selectedInvId, setSelectedInvId] = useState<string | 'all'>('all');
   const [selicRate, setSelicRate] = useState<number>(10.5);
   const [, setTick] = useState(0);
 
@@ -222,67 +223,175 @@ export function Dashboard() {
         {!profile?.is_admin && investments.length > 0 && (
           <div className="lg:col-span-3">
             <Card className="border-none shadow-md overflow-hidden">
-              <CardHeader className="bg-gray-50/50 pb-2">
-                <div className="flex items-center justify-between">
+              <CardHeader className="bg-gray-50/50 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <TrendingUpDown className="w-5 h-5 text-brand-orange" />
-                      Evolução da Carteira (30m)
+                      Análise da Carteira
                     </CardTitle>
                     <p className="text-xs text-gray-500 mt-1">
-                      Acompanhe o desempenho de todos os seus ativos em tempo real (Base 100).
+                      Visualize a performance individual ou comparativa (Escala 100).
                     </p>
                   </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedInvId('all')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        selectedInvId === 'all' 
+                          ? 'bg-brand-orange text-white shadow-md shadow-brand-orange/20' 
+                          : 'bg-white text-gray-500 border border-gray-200 hover:border-brand-orange'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {investments.map(inv => (
+                      <button
+                        key={inv.id}
+                        onClick={() => setSelectedInvId(inv.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+                          selectedInvId === inv.id 
+                            ? 'bg-gray-900 text-white shadow-md' 
+                            : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-900'
+                        }`}
+                      >
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: getInvestmentColor(inv.type) }}
+                        />
+                        {inv.type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {selectedInvId !== 'all' && (
+                  <div className="mt-4 p-3 bg-white rounded-xl border border-gray-100 flex items-center justify-between animate-in fade-in zoom-in-95">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                        style={{ backgroundColor: getInvestmentColor(investments.find(i => i.id === selectedInvId)?.type || '') }}
+                      >
+                        <Coins className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-gray-400">Ativo Selecionado</p>
+                        <p className="text-sm font-black text-gray-900">{investments.find(i => i.id === selectedInvId)?.type}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Valor Atual Estimado</p>
+                      <p className="text-sm font-black text-brand-orange">
+                        {calculateCurrentAmount(investments.find(i => i.id === selectedInvId)!, selicRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
-                      <XAxis 
-                        dataKey="time" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#9ca3af' }} 
-                      />
-                      <YAxis 
-                        domain={['auto', 'auto']} 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#9ca3af' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '12px', 
-                          border: 'none', 
-                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                          fontSize: '12px'
-                        }}
-                      />
-                      <Legend 
-                        verticalAlign="top" 
-                        height={36}
-                        iconType="circle"
-                        formatter={(value) => {
-                          const inv = investments.find(i => i.id === value);
-                          return <span className="text-xs font-bold text-gray-600">{inv?.type}</span>;
-                        }}
-                      />
-                      {investments.map(inv => (
-                        <Line
-                          key={inv.id}
-                          type="monotone"
-                          dataKey={inv.id}
-                          name={inv.id}
-                          stroke={getInvestmentColor(inv.type)}
-                          strokeWidth={3}
-                          dot={false}
-                          activeDot={{ r: 6 }}
+                    {selectedInvId === 'all' ? (
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
+                        <XAxis 
+                          dataKey="time" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }} 
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value, name) => {
+                            const inv = investments.find(i => i.id === name);
+                            return [`${value} UR`, inv?.type || name];
+                          }}
+                        />
+                        <Legend 
+                          verticalAlign="top" 
+                          height={36}
+                          iconType="circle"
+                          formatter={(value) => {
+                            const inv = investments.find(i => i.id === value);
+                            return <span className="text-[10px] font-bold text-gray-400 uppercase">{inv?.type}</span>;
+                          }}
+                        />
+                        {investments.map(inv => (
+                          <Line
+                            key={inv.id}
+                            type="monotone"
+                            dataKey={inv.id}
+                            name={inv.id}
+                            stroke={getInvestmentColor(inv.type)}
+                            strokeWidth={3}
+                            dot={false}
+                            activeDot={{ r: 6 }}
+                            animationDuration={500}
+                          />
+                        ))}
+                      </LineChart>
+                    ) : (
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="selectedColor" x1="0" y1="0" x2="0" y2="1">
+                            <stop 
+                              offset="5%" 
+                              stopColor={getInvestmentColor(investments.find(i => i.id === selectedInvId)?.type || '')} 
+                              stopOpacity={0.3}
+                            />
+                            <stop 
+                              offset="95%" 
+                              stopColor={getInvestmentColor(investments.find(i => i.id === selectedInvId)?.type || '')} 
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
+                        <XAxis 
+                          dataKey="time" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }} 
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}
+                          formatter={(value) => [`${value} UR`, 'Valor Base']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey={selectedInvId} 
+                          stroke={getInvestmentColor(investments.find(i => i.id === selectedInvId)?.type || '')} 
+                          strokeWidth={4}
+                          fillOpacity={1} 
+                          fill="url(#selectedColor)" 
                           animationDuration={500}
                         />
-                      ))}
-                    </LineChart>
+                      </AreaChart>
+                    )}
                   </ResponsiveContainer>
                 </div>
               </CardContent>
