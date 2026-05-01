@@ -42,6 +42,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const { rate: liveRate, formatValue: formatBRL } = useExchangeRate();
   const [calcValue, setCalcValue] = useState<string>('');
+  const [calcMode, setCalcMode] = useState<'UR_TO_BRL' | 'BRL_TO_UR'>('UR_TO_BRL');
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [selectedInvId, setSelectedInvId] = useState<string | 'all'>('all');
   const [selicRate, setSelicRate] = useState<number>(10.5);
@@ -556,22 +557,59 @@ export function Dashboard() {
               <p className="text-[10px] text-gray-400 mt-2 font-bold italic tracking-tight">Cada 100 Unireais valem {formatBRL(100)}</p>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="text-sm font-bold text-gray-700">Calculadora Rápida</h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-gray-700">Calculadora Rápida</h4>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => {
+                      setCalcMode('UR_TO_BRL');
+                      setCalcValue('');
+                    }}
+                    className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${
+                      calcMode === 'UR_TO_BRL' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-400'
+                    }`}
+                  >
+                    UR → R$
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCalcMode('BRL_TO_UR');
+                      setCalcValue('');
+                    }}
+                    className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${
+                      calcMode === 'BRL_TO_UR' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-400'
+                    }`}
+                  >
+                    R$ → UR
+                  </button>
+                </div>
+              </div>
+              
               <div className="relative">
                 <Input 
                   type="number"
-                  placeholder="Quantos UR você tem?"
-                  className="bg-white pr-12 text-lg font-bold"
+                  placeholder={calcMode === 'UR_TO_BRL' ? "Quantos UR você tem?" : "Quantos Reais você tem?"}
+                  className="bg-white pr-12 text-lg font-bold border-gray-200 focus:border-brand-orange transition-colors"
                   value={calcValue}
                   onChange={(e) => setCalcValue(e.target.value)}
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs uppercase">UR</span>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs uppercase">
+                  {calcMode === 'UR_TO_BRL' ? 'UR' : 'R$'}
+                </span>
               </div>
+              
               {calcValue && (
-                <div className="p-3 bg-brand-orange text-white rounded-xl text-center animate-in zoom-in-95 duration-200">
-                  <p className="text-xs font-medium uppercase opacity-80">Valor em Reais</p>
-                  <p className="text-xl font-black">{formatBRL(Number(calcValue))}</p>
+                <div className="p-4 bg-gray-900 text-white rounded-2xl text-center animate-in zoom-in-95 duration-200 shadow-lg">
+                  <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">
+                    {calcMode === 'UR_TO_BRL' ? 'Valor Estimado em Reais' : 'Valor Estimado em Unireais'}
+                  </p>
+                  <p className="text-2xl font-black">
+                    {calcMode === 'UR_TO_BRL' 
+                      ? formatBRL(Number(calcValue)) 
+                      : `${(Number(calcValue) / liveRate).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} UR`
+                    }
+                  </p>
                 </div>
               )}
             </div>
