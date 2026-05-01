@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown } from 'lucide-react';
+import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown, Info } from 'lucide-react';
 import { useExchangeRate } from '../hooks/useExchangeRate';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Investment = {
   id: string;
@@ -18,7 +19,7 @@ type Investment = {
   redeemed_amount: number | null;
 };
 
-// Calculate yield based on time elapsed
+// Calculate yield based on time elapsed with volatility for high-risk assets
 const calculateCurrentAmount = (investment: Investment, currentSelic: number) => {
   if (investment.redeemed_at && investment.redeemed_amount) {
     return investment.redeemed_amount;
@@ -27,10 +28,18 @@ const calculateCurrentAmount = (investment: Investment, currentSelic: number) =>
   const startDate = new Date(investment.created_at);
   const now = new Date();
   const millisecondsPassed = now.getTime() - startDate.getTime();
+  const secondsPassed = millisecondsPassed / 1000;
   const daysPassed = millisecondsPassed / (1000 * 60 * 60 * 24);
   const yearsPassed = daysPassed / 365;
   
   let annualRate = 0;
+  let volatility = 0;
+
+  // Define volatility based on type
+  if (investment.type.includes('Criptoativo')) volatility = 0.35; // 35% swing
+  if (investment.type.includes('Ações High')) volatility = 0.20; // 20% swing
+  if (investment.type.includes('Venture Capital')) volatility = 0.50; // 50% swing
+
   if (investment.rate_type === 'CDI') {
     const cdi = Math.max(currentSelic - 0.10, 0); 
     annualRate = cdi * (investment.rate_value / 100);
@@ -38,7 +47,22 @@ const calculateCurrentAmount = (investment: Investment, currentSelic: number) =>
     annualRate = investment.rate_value;
   }
   
-  const currentAmount = investment.amount * Math.pow(1 + annualRate / 100, yearsPassed);
+  // Base growth (deterministic)
+  let currentAmount = investment.amount * Math.pow(1 + annualRate / 100, yearsPassed);
+
+  // Apply Volatility if applicable
+  if (volatility > 0) {
+    // We use a deterministic "wave" so the price follows a path based on the investment ID and time.
+    // This allows the value to go DOWN below the principal.
+    const seed = investment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    // Large wave for cycles
+    const wave = Math.sin((secondsPassed / 40) + seed) * volatility;
+    // Faster noise for market "jitter"
+    const noise = Math.sin((secondsPassed / 5) + seed * 1.5) * (volatility / 4);
+    
+    currentAmount = currentAmount * (1 + wave + noise);
+  }
+
   return currentAmount;
 };
 
@@ -155,6 +179,18 @@ export function Investments() {
         type = 'Debênture de Infraestrutura';
         rateType = 'FIXED';
         rateValue = 15.0; // 15% a.a
+      } else if (selectedProduct === 'crypto_strat') {
+        type = 'Criptoativo Estratégico';
+        rateType = 'FIXED';
+        rateValue = 45.0; // 45% a.a
+      } else if (selectedProduct === 'stocks_growth') {
+        type = 'Ações High Growth';
+        rateType = 'FIXED';
+        rateValue = 30.0; // 30% a.a
+      } else if (selectedProduct === 'vc_fund') {
+        type = 'Venture Capital Hub';
+        rateType = 'FIXED';
+        rateValue = 60.0; // 60% a.a
       }
 
       // Decrement balance
@@ -272,6 +308,40 @@ CREATE POLICY "Users can update their own investments"
   }
 
   const cdiRate = Math.max(selicRate - 0.10, 0).toFixed(2);
+
+  // Generate chart data based on active product
+  const getProductChartData = () => {
+    if (!selectedProduct) return [];
+    
+    let volatility = 0;
+    if (selectedProduct === 'crypto_strat') volatility = 0.35;
+    if (selectedProduct === 'stocks_growth') volatility = 0.20;
+    if (selectedProduct === 'vc_fund') volatility = 0.50;
+    // Lower volatility for others
+    if (volatility === 0) volatility = 0.02; 
+
+    const data = [];
+    const now = Date.now();
+    const seed = selectedProduct.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    // Generate 30 points (representing "recent history")
+    for (let i = 0; i <= 30; i++) {
+      const timeOffset = (30 - i) * 60; // Offset in seconds (every minute for 30 mins)
+      const virtualSeconds = (now / 1000) - timeOffset;
+      
+      const wave = Math.sin((virtualSeconds / 40) + seed) * volatility;
+      const noise = Math.sin((virtualSeconds / 5) + seed * 1.5) * (volatility / 4);
+      const value = 100 * (1 + wave + noise);
+      
+      data.push({
+        time: i === 30 ? 'Agora' : `-${30 - i}m`,
+        valor: Number(value.toFixed(2)),
+      });
+    }
+    return data;
+  };
+
+  const chartData = getProductChartData();
 
   return (
     <div className="space-y-8">
@@ -412,11 +482,139 @@ CREATE POLICY "Users can update their own investments"
                 <p className="text-sm text-gray-500">Empreste direto para grandes projetos. Rende incríveis 15,00% ao ano, mas tem maior risco.</p>
               </div>
 
+              <div className="pt-4 pb-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUpDown className="w-5 h-5 text-red-500" />
+                  <h3 className="font-black text-xs uppercase tracking-widest text-red-500">Oportunidades de Alto Risco</h3>
+                </div>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'crypto_strat' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('crypto_strat')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-red-400" />
+                    Criptoativo Estratégico
+                  </h3>
+                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold w-fit">Alto Risco</span>
+                </div>
+                <p className="text-sm text-gray-500">Exposição ao mercado de ativos digitais. Alvo de 45,00% ao ano. <span className="text-red-500 font-bold block mt-1">Atenção: O valor pode cair abaixo do investido.</span></p>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'stocks_growth' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('stocks_growth')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-red-400" />
+                    Ações High Growth
+                  </h3>
+                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold w-fit">Alto Risco</span>
+                </div>
+                <p className="text-sm text-gray-500">Fundo de ações de tecnologia e inovação. Retorno de 30,00% ao ano. <span className="text-red-500 font-bold block mt-1">Atenção: Oscilações bruscas de mercado.</span></p>
+              </div>
+
+              <div 
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'vc_fund' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+                onClick={() => setSelectedProduct('vc_fund')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-black flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-red-400" />
+                    Venture Capital Hub
+                  </h3>
+                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold w-fit">Venture Capital</span>
+                </div>
+                <p className="text-sm text-gray-500">Invista em startups unicórnios em estágio inicial. Potencial de 60,00% ao ano. <span className="text-purple-600 font-bold block mt-1">Risco total: Você pode perder parte do capital.</span></p>
+              </div>
+
             </CardContent>
           </Card>
 
           {selectedProduct && (
-            <Card className="border-brand-orange shadow-lg shadow-brand-orange/10 animate-in fade-in slide-in-from-bottom-4">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <Card className="overflow-hidden border-orange-200">
+                <CardHeader className="bg-gray-50/50 pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUpDown className="w-5 h-5 text-brand-orange" />
+                        Oscilação de Mercado (Simulação)
+                      </CardTitle>
+                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <Info className="w-3 h-3" /> 
+                        Acompanhe a variação do ativo em tempo real para decidir o melhor ponto de entrada.
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#FB923C" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#FB923C" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
+                        <XAxis 
+                          dataKey="time" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }} 
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#9ca3af' }}
+                          tickFormatter={(val) => `${val}`}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}
+                          formatter={(value) => [`${value} UR`, 'Valor Base']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="valor" 
+                          stroke="#FB923C" 
+                          strokeWidth={3}
+                          fillOpacity={1} 
+                          fill="url(#colorVal)" 
+                          animationDuration={500}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                      <span className="text-[10px] uppercase font-bold text-orange-600 block">Menor Valor (30m)</span>
+                      <span className="text-lg font-black text-orange-700">
+                        {Math.min(...chartData.map(d => d.valor)).toFixed(2)} UR
+                      </span>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-xl border border-green-100">
+                      <span className="text-[10px] uppercase font-bold text-green-600 block">Maior Valor (30m)</span>
+                      <span className="text-lg font-black text-green-700">
+                        {Math.max(...chartData.map(d => d.valor)).toFixed(2)} UR
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-brand-orange shadow-lg shadow-brand-orange/10">
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
@@ -449,10 +647,11 @@ CREATE POLICY "Users can update their own investments"
                 <p className="text-xs text-gray-400 mt-3">Saldo Disponível: <strong>{profile?.balance || 0} UR</strong></p>
               </CardContent>
             </Card>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Minha Carteira */}
+      {/* Minha Carteira */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="shadow-md shadow-brand-orange/5 border-orange-100">
             <CardHeader className="bg-gradient-to-br from-brand-orange to-orange-600 rounded-t-xl text-white">
@@ -552,8 +751,14 @@ CREATE POLICY "Users can update their own investments"
                             {profit > 0 && !isRedeemed && (
                               <p className="text-xs text-green-600 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro</p>
                             )}
+                            {profit < 0 && !isRedeemed && (
+                              <p className="text-xs text-red-600 font-medium">{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de prejuízo momentâneo</p>
+                            )}
                             {profit > 0 && isRedeemed && (
                               <p className="text-xs text-gray-500 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro realizado</p>
+                            )}
+                            {profit < 0 && isRedeemed && (
+                              <p className="text-xs text-gray-500 font-medium">{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de perda realizada</p>
                             )}
                           </div>
                           
