@@ -12,6 +12,51 @@ import { Transfer } from './pages/Transfer';
 import { Admin } from './pages/Admin';
 import { Investments } from './pages/Investments';
 import { MyQRCode } from './pages/MyQRCode';
+import { Maintenance } from './pages/Maintenance';
+import { supabase } from './lib/supabase';
+
+function MaintenanceGuard({ children }: { children: React.ReactNode }) {
+  const { profile, loading: authLoading } = useAuth();
+  const [maintenance, setMaintenance] = React.useState({ active: false, message: '' });
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function checkMaintenance() {
+      try {
+        const { data } = await supabase
+          .from('settings')
+          .select('key, value');
+        
+        if (data) {
+          const active = data.find(s => s.key === 'maintenance_mode')?.value === true;
+          const message = data.find(s => s.key === 'maintenance_message')?.value || '';
+          setMaintenance({ active, message });
+        }
+      } catch (err) {
+        console.error("Maint check error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkMaintenance();
+  }, [profile]);
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-brand-gray">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-orange"></div>
+      </div>
+    );
+  }
+
+  // If maintenance is ON and user is NOT admin -> Block
+  if (maintenance.active && profile && !profile.is_admin) {
+    return <Maintenance message={maintenance.message} />;
+  }
+
+  return <>{children}</>;
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -44,7 +89,9 @@ export default function App() {
             path="/"
             element={
               <PrivateRoute>
-                <Layout />
+                <MaintenanceGuard>
+                  <Layout />
+                </MaintenanceGuard>
               </PrivateRoute>
             }
           >

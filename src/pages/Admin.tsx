@@ -30,6 +30,8 @@ export function Admin() {
   // Settings state
   const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements'>('users');
   const [exchangeRate, setExchangeRate] = useState<string>('0.01');
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('O sistema está em manutenção para melhorias. Voltamos em breve!');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successSettings, setSuccessSettings] = useState(false);
   const [dbError, setDbError] = useState<boolean>(false);
@@ -116,9 +118,7 @@ export function Admin() {
     try {
       const { data, error } = await supabase
         .from('settings')
-        .select('value')
-        .eq('key', 'exchange_rate')
-        .single();
+        .select('key, value');
       
       if (error) {
         if (error.code === '42P01' || error.message.includes('row-level security')) {
@@ -128,7 +128,14 @@ export function Admin() {
       }
       
       if (data) {
-        setExchangeRate(data.value.toString());
+        const rate = data.find(s => s.key === 'exchange_rate');
+        const maint = data.find(s => s.key === 'maintenance_mode');
+        const msg = data.find(s => s.key === 'maintenance_message');
+        
+        if (rate) setExchangeRate(rate.value.toString());
+        if (maint) setMaintenanceMode(maint.value === true);
+        if (msg) setMaintenanceMessage(msg.value.toString());
+        
         setDbError(false);
       }
     } catch (err) {
@@ -136,24 +143,26 @@ export function Admin() {
     }
   };
 
-  const saveExchangeRate = async () => {
+  const saveSettings = async () => {
     setSavingSettings(true);
     setSuccessSettings(false);
     try {
       const rate = parseFloat(exchangeRate);
       if (isNaN(rate) || rate <= 0) throw new Error("Cotação inválida");
 
-      const { error: settingsError } = await supabase
-        .from('settings')
-        .upsert({ 
-          key: 'exchange_rate', 
-          value: rate,
-          updated_at: new Date().toISOString()
-        });
+      const updates = [
+        { key: 'exchange_rate', value: rate, updated_at: new Date().toISOString() },
+        { key: 'maintenance_mode', value: maintenanceMode, updated_at: new Date().toISOString() },
+        { key: 'maintenance_message', value: maintenanceMessage, updated_at: new Date().toISOString() }
+      ];
 
-      if (settingsError) {
+      const { error } = await supabase
+        .from('settings')
+        .upsert(updates);
+
+      if (error) {
         setDbError(true);
-        throw settingsError;
+        throw error;
       }
       
       setDbError(false);
@@ -539,7 +548,7 @@ export function Admin() {
               <div className="flex justify-end border-t border-gray-100 pt-8">
                 <Button 
                   size="lg"
-                  onClick={saveExchangeRate} 
+                  onClick={saveSettings} 
                   disabled={savingSettings}
                   className="px-10 h-16 rounded-2xl text-lg font-black shadow-lg shadow-brand-orange/20 flex items-center gap-3 transition-all hover:scale-105 active:scale-95"
                 >
@@ -551,6 +560,42 @@ export function Admin() {
                   )}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-100 bg-red-50/30">
+            <CardHeader className="p-6 border-b border-red-100">
+              <CardTitle className="text-xl flex items-center gap-2 text-red-600">
+                <Bell className="w-6 h-6" />
+                Modo de Manutenção (Lock Mode)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="flex items-center justify-between p-6 bg-white rounded-2xl border border-red-100 shadow-sm">
+                <div>
+                  <h4 className="font-bold text-gray-900">Pausar Plataforma</h4>
+                  <p className="text-sm text-gray-500">Alunos serão impedidos de realizar qualquer ação.</p>
+                </div>
+                <button 
+                  onClick={() => setMaintenanceMode(!maintenanceMode)}
+                  className={`w-14 h-8 rounded-full transition-all relative ${maintenanceMode ? 'bg-red-600' : 'bg-gray-200'}`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${maintenanceMode ? 'left-7' : 'left-1 shadow-sm'}`} />
+                </button>
+              </div>
+
+              {maintenanceMode && (
+                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-black text-red-600 uppercase tracking-widest">Mensagem de Aviso para Alunos</label>
+                  <textarea 
+                    className="w-full min-h-[100px] p-4 rounded-xl border border-red-200 focus:border-red-600 outline-none resize-none text-sm bg-white"
+                    placeholder="Ex: Estamos atualizando o sistema para a próxima fase da economia..."
+                    value={maintenanceMessage}
+                    onChange={e => setMaintenanceMessage(e.target.value)}
+                  />
+                  <p className="text-[10px] text-red-500 font-bold italic tracking-tight">Os alunos verão esta mensagem em tela cheia ao tentar acessar qualquer página.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
