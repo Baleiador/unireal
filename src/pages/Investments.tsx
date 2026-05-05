@@ -4,14 +4,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Wallet, Landmark, ArrowRight, ShieldCheck, Clock, CheckCircle, TrendingUpDown, Info } from 'lucide-react';
+import { Briefcase, ShoppingCart, Wallet, History, ShieldCheck, TrendingUpDown, CheckCircle, Tag, TrendingUp, Landmark, BarChart3, Info, AlertTriangle } from 'lucide-react';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Investment, 
   calculateCurrentAmount, 
   getOrganicOscillation, 
+  calculateCurrentSharePrice
 } from '../lib/investment-utils';
+
+type Product = {
+  id: string;
+  name: string;
+  category: 'conservative' | 'moderate' | 'aggressive';
+  description: string;
+  basePrice: number;
+  volatility: number;
+  yieldInfo: string;
+};
 
 export function Investments() {
   const { profile, refreshProfile } = useAuth();
@@ -22,30 +33,30 @@ export function Investments() {
   const { formatValue: formatBRL } = useExchangeRate();
   
   // Form states
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
-  const [amountToInvest, setAmountToInvest] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<string>('tesouro_selic');
+  const [quantity, setQuantity] = useState('1');
   const [investing, setInvesting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'ativos' | 'resgatados'>('ativos');
+  const [activeTab, setActiveTab] = useState<'market' | 'portfolio' | 'history'>('market');
   const [remainingCooldown, setRemainingCooldown] = useState<number>(0);
   const [, setTick] = useState(0);
 
+  const products: Product[] = [
+    { id: 'tesouro_selic', name: 'Tesouro Selic', category: 'conservative', description: 'Títulos públicos garantidos pelo governo.', basePrice: 100, volatility: 0.02, yieldInfo: 'SELIC (10.5% a.a)' },
+    { id: 'cdb_100', name: 'CDB Liquidez Diária', category: 'conservative', description: 'Empréstimo para bancos com retorno garantido.', basePrice: 50, volatility: 0.02, yieldInfo: '100% do CDI' },
+    { id: 'poupanca', name: 'Poupança Digital', category: 'conservative', description: 'O clássico investimento brasileiro.', basePrice: 10, volatility: 0.01, yieldInfo: '0.5% ao mês + TR' },
+    { id: 'lca_95', name: 'LCA Agronegócio', category: 'moderate', description: 'Financie o campo com isenção de taxas.', basePrice: 200, volatility: 0.05, yieldInfo: '95% do CDI' },
+    { id: 'debenture_prefixada', name: 'Debênture Infra', category: 'moderate', description: 'Títulos de empresas de infraestrutura.', basePrice: 150, volatility: 0.12, yieldInfo: 'IPCA + 6%' },
+    { id: 'stocks_growth', name: 'Ações High Growth', category: 'aggressive', description: 'Empresas de tecnologia com alto potencial.', basePrice: 80, volatility: 0.35, yieldInfo: 'Variável (Mercado)' },
+    { id: 'crypto_strat', name: 'Criptoativo Estratégico', category: 'aggressive', description: 'Ativos digitais de alta volatilidade.', basePrice: 25, volatility: 0.65, yieldInfo: 'Extrema Volatilidade' },
+    { id: 'vc_fund', name: 'Venture Capital Hub', category: 'aggressive', description: 'Investimento em Startups unicórnios.', basePrice: 500, volatility: 0.80, yieldInfo: 'Alto Risco / Alta Recompensa' },
+  ];
+
+  const currentProduct = products.find(p => p.id === selectedProduct) || products[0];
+
   const getProductName = (slug: string) => {
-    switch(slug) {
-      case 'cdb_110': return 'CDB MAX Plus';
-      case 'lci_fix': return 'LCI Prefixada';
-      case 'cdb_100': return 'CDB Liquidez Diária';
-      case 'tesouro_selic': return 'Tesouro Selic';
-      case 'poupanca': return 'Poupança';
-      case 'lca_95': return 'LCA Agronegócio';
-      case 'cdb_120': return 'CDB Banco Secundário';
-      case 'debenture_prefixada': return 'Debênture de Infraestrutura';
-      case 'crypto_strat': return 'Criptoativo Estratégico';
-      case 'stocks_growth': return 'Ações High Growth';
-      case 'vc_fund': return 'Venture Capital Hub';
-      default: return '';
-    }
+    return products.find(p => p.id === slug)?.name || '';
   };
 
   const checkCooldown = async (slug: string) => {
@@ -141,14 +152,16 @@ export function Investments() {
 
   const handleInvest = async () => {
     if (!profile || !selectedProduct) return;
-    const value = Number(amountToInvest);
-    if (isNaN(value) || value <= 0) {
-      setErrorMsg("Valor inválido.");
+    const qty = Number(quantity);
+    if (isNaN(qty) || qty <= 0) {
+      setErrorMsg("Quantidade inválida.");
       return;
     }
     
-    if (value > profile.balance) {
-      setErrorMsg("Saldo insuficiente.");
+    const totalCost = qty * currentProduct.basePrice;
+
+    if (totalCost > (profile.balance || 0)) {
+      setErrorMsg("Saldo insuficiente para esta compra.");
       return;
     }
 
@@ -159,93 +172,43 @@ export function Investments() {
     // Re-check cooldown just before investing to be safe
     await checkCooldown(selectedProduct);
     if (remainingCooldown > 0) {
-      setErrorMsg(`Aguarde o período de resfriamento (${remainingCooldown}s) para investir novamente neste ativo.`);
+      setErrorMsg(`Aguarde o período de resfriamento (${remainingCooldown}s) para comprar este título novamente.`);
       setInvesting(false);
       return;
     }
 
     try {
-      // Products configuration
-      let type = '';
-      let rateType = '';
-      let rateValue = 0;
-
-      if (selectedProduct === 'cdb_110') {
-        type = 'CDB MAX Plus';
-        rateType = 'CDI';
-        rateValue = 110;
-      } else if (selectedProduct === 'lci_fix') {
-        type = 'LCI Prefixada';
-        rateType = 'FIXED';
-        rateValue = 12.0; // 12% a.a
-      } else if (selectedProduct === 'cdb_100') {
-        type = 'CDB Liquidez Diária';
-        rateType = 'CDI';
-        rateValue = 100;
-      } else if (selectedProduct === 'tesouro_selic') {
-        type = 'Tesouro Selic';
-        rateType = 'CDI';
-        rateValue = 100; // Simplified as 100% of CDI for simulation purposes
-      } else if (selectedProduct === 'poupanca') {
-        type = 'Poupança';
-        rateType = 'CDI';
-        rateValue = 70; // Poupança usually yields 70% of Selic when Selic > 8.5%
-      } else if (selectedProduct === 'lca_95') {
-        type = 'LCA Agronegócio';
-        rateType = 'CDI';
-        rateValue = 95;
-      } else if (selectedProduct === 'cdb_120') {
-        type = 'CDB Banco Secundário';
-        rateType = 'CDI';
-        rateValue = 120;
-      } else if (selectedProduct === 'debenture_prefixada') {
-        type = 'Debênture de Infraestrutura';
-        rateType = 'FIXED';
-        rateValue = 15.0; // 15% a.a
-      } else if (selectedProduct === 'crypto_strat') {
-        type = 'Criptoativo Estratégico';
-        rateType = 'FIXED';
-        rateValue = 5.0; // Mega Nerf: Was 12%, Now 5% a.a. (high risk, low base yield)
-      } else if (selectedProduct === 'stocks_growth') {
-        type = 'Ações High Growth';
-        rateType = 'FIXED';
-        rateValue = 7.0; // Adjusted from 8%
-      } else if (selectedProduct === 'vc_fund') {
-        type = 'Venture Capital Hub';
-        rateType = 'FIXED';
-        rateValue = 10.0; // Adjusted from 15%
-      }
-
-      // Decrement balance
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ balance: profile.balance - value })
-        .eq('id', profile.id);
-
-      if (profileError) throw profileError;
-
-      // Insert investment
+      // Create investment record
       const { error: investError } = await supabase
         .from('investments')
         .insert({
           user_id: profile.id,
-          type,
-          amount: value,
-          rate_type: rateType,
-          rate_value: rateValue
+          type: currentProduct.name,
+          amount: totalCost,
+          quantity: qty,
+          purchase_unit_price: currentProduct.basePrice,
+          rate_type: 'FIXED',
+          rate_value: 5, // Base default drift
         });
 
       if (investError) throw investError;
 
-      setSuccessMsg(`Você investiu ${value} UR em ${type}!`);
-      setAmountToInvest('');
-      setSelectedProduct(null);
+      // Update balance
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ balance: (profile.balance || 0) - totalCost })
+        .eq('id', profile.id);
+
+      if (balanceError) throw balanceError;
+
+      setSuccessMsg(`Você comprou ${qty} títulos de ${currentProduct.name}!`);
+      setQuantity('1');
       await refreshProfile();
       await fetchInvestments();
       
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (error: any) {
-      setErrorMsg(error.message || "Erro ao processar investimento.");
+      setErrorMsg(error.message || "Erro ao processar compra.");
     } finally {
       setInvesting(false);
     }
@@ -254,13 +217,10 @@ export function Investments() {
   const handleRedeem = async (inv: Investment) => {
     if (inv.redeemed_at) return;
     try {
-      const currentVal = calculateCurrentAmount(inv, selicRate);
+      const currentVal = calculateCurrentAmount(inv);
       
-      // Using Math.round because some users have balance/redeemed_amount as INTEGER in the database.
-      // If the database is INTEGER, it will fail with "invalid input syntax for type integer" if we send decimals.
       const roundedCurrentVal = Math.round(currentVal);
       
-      // Update investment to redeemed
       const { error: updateInvError } = await supabase
         .from('investments')
         .update({ 
@@ -271,29 +231,27 @@ export function Investments() {
         
       if (updateInvError) throw updateInvError;
       
-      // Update user balance
       const { data: userData, error: userError } = await supabase.from('profiles').select('balance').eq('id', profile?.id).single();
       if (userError) throw userError;
       
-      // Ensure balance is also an integer to avoid errors in the profiles table
       const newBalance = Math.round((userData?.balance || 0) + currentVal);
       
       const { error: profileUpdateError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', profile?.id);
       if (profileUpdateError) throw profileUpdateError;
       
       await fetchInvestments();
-      await refreshProfile(); // Refresh context
-      alert(`Você resgatou ${roundedCurrentVal} UR com sucesso!`);
+      await refreshProfile();
+      alert(`Você vendeu seus títulos por ${roundedCurrentVal} UR!`);
     } catch(err: any) {
       console.error(err);
-      alert(`Erro ao resgatar: ${err?.message || 'Desconhecido'}`);
+      alert(`Erro ao vender: ${err?.message || 'Desconhecido'}`);
     }
   };
 
   // Calculate portfolio totals
   const activeInvestments = investments.filter(inv => !inv.redeemed_at);
   const totalInvested = activeInvestments.reduce((acc, inv) => acc + inv.amount, 0);
-  const totalCurrentValue = activeInvestments.reduce((acc, inv) => acc + calculateCurrentAmount(inv, selicRate), 0);
+  const totalCurrentValue = activeInvestments.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0);
   const totalProfit = totalCurrentValue - totalInvested;
 
   if (dbError) {
@@ -377,454 +335,317 @@ CREATE POLICY "Users can update their own investments"
   const chartData = getProductChartData();
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-brand-orange" />
-            Corretora Unireal
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+            <Briefcase className="w-10 h-10 text-brand-orange" />
+            Mercado de Títulos
           </h1>
-          <p className="text-gray-500">Faça seu saldo render simulando o mercado financeiro.</p>
+          <p className="text-gray-500 mt-1 font-medium">Compre ativos e gerencie sua carteira de investimentos.</p>
         </div>
-        <div className="bg-green-50 px-4 py-2 rounded-xl border border-green-200 flex flex-col items-end">
-          <span className="text-sm font-bold text-green-700 uppercase tracking-wider">Taxa Selic Atual</span>
-          <span className="text-xl font-black text-green-800">{selicRate.toFixed(2)}% a.a.</span>
+        <div className="flex bg-gray-100 p-1 rounded-2xl">
+          <button 
+            onClick={() => setActiveTab('market')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'market' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            <ShoppingCart className="w-4 h-4" /> MERCADO
+          </button>
+          <button 
+            onClick={() => setActiveTab('portfolio')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'portfolio' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            <Wallet className="w-4 h-4" /> MINHA CARTEIRA
+            {activeInvestments.length > 0 && <span className="w-5 h-5 bg-brand-orange text-white text-[10px] rounded-full flex items-center justify-center animate-pulse">{activeInvestments.length}</span>}
+          </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'history' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            <History className="w-4 h-4" /> HISTÓRICO
+          </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Painel de Investimento */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Títulos Disponíveis</CardTitle>
-              <p className="text-sm text-gray-500">Compre letras de crédito baseadas na economia real (CDI: {cdiRate}% a.a).</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              
+      {activeTab === 'market' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {products.map(product => (
               <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'poupanca' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('poupanca')}
+                key={product.id} 
+                className={`relative overflow-hidden cursor-pointer transition-all border-2 rounded-xl bg-white ${selectedProduct === product.id ? 'border-brand-orange ring-4 ring-brand-orange/10 scale-[1.02]' : 'border-gray-100 hover:border-gray-300'}`}
+                onClick={() => setSelectedProduct(product.id)}
               >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-gray-400" />
-                    Poupança Unireal
-                  </h3>
-                  <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold w-fit">70% da Selic</span>
-                </div>
-                <p className="text-sm text-gray-500">O mais tradicional. Rende menos que as outras opções (equivale a {(Number(cdiRate)*0.7).toFixed(2)}% ao ano).</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'tesouro_selic' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('tesouro_selic')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-gray-400" />
-                    Tesouro Selic
-                  </h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">100% da Selic</span>
-                </div>
-                <p className="text-sm text-gray-500">Emprestado ao "Governo", risco baixíssimo. Rende aproximadamente {cdiRate}% ao ano.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'cdb_100' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('cdb_100')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-gray-400" />
-                    CDB Liquidez Diária
-                  </h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">100% do CDI</span>
-                </div>
-                <p className="text-sm text-gray-500">Ideal para deixar o saldo render. Rende equivalente a {cdiRate}% ao ano.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'lca_95' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('lca_95')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Landmark className="w-5 h-5 text-gray-400" />
-                    LCA Agronegócio
-                  </h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">95% do CDI</span>
-                </div>
-                <p className="text-sm text-gray-500">Apoie o agronegócio de forma isenta (na vida real). Rende {(Number(cdiRate)*0.95).toFixed(2)}% ao ano.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'cdb_110' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('cdb_110')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Landmark className="w-5 h-5 text-gray-400" />
-                    CDB MAX Plus
-                  </h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">110% do CDI</span>
-                </div>
-                <p className="text-sm text-gray-500">Rendimento superior atrelado à variação do mercado. Equivale a {(Number(cdiRate)*1.1).toFixed(2)}% ao ano.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'cdb_120' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('cdb_120')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-gray-400" />
-                    CDB Banco Secundário
-                  </h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold w-fit">120% do CDI</span>
-                </div>
-                <p className="text-sm text-gray-500">Mais retorno, mas emitido por instituições menores. Rende {(Number(cdiRate)*1.2).toFixed(2)}% ao ano.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'lci_fix' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('lci_fix')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-gray-400" />
-                    LCI Prefixada 12%
-                  </h3>
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold w-fit">Prefixado</span>
-                </div>
-                <p className="text-sm text-gray-500">Trave seu ganho em 12,00% ao ano, independentemente se a Selic cair.</p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'debenture_prefixada' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('debenture_prefixada')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Landmark className="w-5 h-5 text-gray-400" />
-                    Debênture de Infra. 15%
-                  </h3>
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold w-fit">Prefixado</span>
-                </div>
-                <p className="text-sm text-gray-500">Empreste direto para grandes projetos. Rende incríveis 15,00% ao ano, mas tem maior risco.</p>
-              </div>
-
-              <div className="pt-4 pb-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUpDown className="w-5 h-5 text-red-500" />
-                  <h3 className="font-black text-xs uppercase tracking-widest text-red-500">Oportunidades de Alto Risco</h3>
-                </div>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'crypto_strat' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('crypto_strat')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-red-400" />
-                    Criptoativo Estratégico
-                  </h3>
-                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold w-fit">Alto Risco</span>
-                </div>
-                <p className="text-sm text-gray-500">Exposição ao mercado de ativos digitais. Alvo de 45,00% ao ano. <span className="text-red-500 font-bold block mt-1">Atenção: O valor pode cair abaixo do investido.</span></p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'stocks_growth' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('stocks_growth')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-red-400" />
-                    Ações High Growth
-                  </h3>
-                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold w-fit">Alto Risco</span>
-                </div>
-                <p className="text-sm text-gray-500">Fundo de ações de tecnologia e inovação. Retorno de 30,00% ao ano. <span className="text-red-500 font-bold block mt-1">Atenção: Oscilações bruscas de mercado.</span></p>
-              </div>
-
-              <div 
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProduct === 'vc_fund' ? 'border-brand-orange bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
-                onClick={() => setSelectedProduct('vc_fund')}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-black flex items-center gap-2">
-                    <Landmark className="w-5 h-5 text-red-400" />
-                    Venture Capital Hub
-                  </h3>
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold w-fit">Venture Capital</span>
-                </div>
-                <p className="text-sm text-gray-500">Invista em startups unicórnios em estágio inicial. Potencial de 60,00% ao ano. <span className="text-purple-600 font-bold block mt-1">Risco total: Você pode perder parte do capital.</span></p>
-              </div>
-
-            </CardContent>
-          </Card>
-
-          {selectedProduct && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <Card className="overflow-hidden border-orange-200">
-                <CardHeader className="bg-gray-50/50 pb-2">
-                  <div className="flex items-center justify-between">
+                {selectedProduct === product.id && <div className="absolute top-0 right-0 p-3 bg-brand-orange text-white rounded-bl-xl"><CheckCircle className="w-4 h-4" /></div>}
+                <div className="p-6">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
+                    product.category === 'conservative' ? 'bg-green-50 text-green-600' :
+                    product.category === 'moderate' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
+                  }`}>
+                    {product.id === 'crypto_strat' ? <TrendingUpDown className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
+                  </div>
+                  <h3 className="font-black text-lg text-gray-900 mb-1">{product.name}</h3>
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{product.description}</p>
+                  <div className="flex items-end justify-between mt-auto">
                     <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <TrendingUpDown className="w-5 h-5 text-brand-orange" />
-                        Oscilação de Mercado (Simulação)
-                      </CardTitle>
-                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                        <Info className="w-3 h-3" /> 
-                        Acompanhe a variação do ativo em tempo real para decidir o melhor ponto de entrada.
-                      </p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Expectativa</p>
+                      <p className="font-bold text-gray-700">{product.yieldInfo}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Preço/Título</p>
+                      <p className="text-xl font-black text-brand-orange">{product.basePrice} UR</p>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#FB923C" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#FB923C" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
-                        <XAxis 
-                          dataKey="time" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fontSize: 10, fill: '#9ca3af' }} 
-                        />
-                        <YAxis 
-                          domain={['auto', 'auto']} 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={(val) => `${val}`}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            borderRadius: '12px', 
-                            border: 'none', 
-                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                            fontSize: '12px',
-                            fontWeight: 'bold'
-                          }}
-                          formatter={(value) => [`${value} UR`, 'Valor Base']}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="valor" 
-                          stroke="#FB923C" 
-                          strokeWidth={3}
-                          fillOpacity={1} 
-                          fill="url(#colorVal)" 
-                          animationDuration={500}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
-                      <span className="text-[10px] uppercase font-bold text-orange-600 block">Menor Valor (30m)</span>
-                      <span className="text-lg font-black text-orange-700">
-                        {Math.min(...chartData.map(d => d.valor)).toFixed(2)} UR
-                      </span>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                      <span className="text-[10px] uppercase font-bold text-green-600 block">Maior Valor (30m)</span>
-                      <span className="text-lg font-black text-green-700">
-                        {Math.max(...chartData.map(d => d.valor)).toFixed(2)} UR
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            ))}
+          </div>
 
-              <Card className="border-brand-orange shadow-lg shadow-brand-orange/10">
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row gap-4 items-end">
-                  <div className="flex-1 w-full">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Quanto deseja investir?</label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        min="1"
-                        placeholder="Ex: 50"
-                        className="text-2xl font-bold h-14 pl-4"
-                        value={amountToInvest}
-                        onChange={(e) => setAmountToInvest(e.target.value)}
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold uppercase">
-                        UR
-                      </span>
+          <div className="space-y-6">
+            <Card className="sticky top-6 border-none shadow-2xl overflow-hidden bg-white">
+              <div className="bg-gray-900 p-8 text-white">
+                <div className="flex items-center gap-3 mb-6">
+                  <Tag className="w-6 h-6 text-brand-orange" />
+                  <h2 className="text-xl font-black uppercase tracking-tight">Ordem de Compra</h2>
+                </div>
+                
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Título Selecionado</label>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                      <p className="font-bold text-lg">{currentProduct.name}</p>
+                      <p className="text-xs text-brand-orange font-bold uppercase">{currentProduct.category === 'aggressive' ? 'Risco Elevado' : 'Risco Controlado'}</p>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Quantidade de Títulos</label>
+                    <Input 
+                      type="number" 
+                      min="1"
+                      className="bg-white/10 border-white/20 text-white text-xl font-black h-16 rounded-2xl focus:border-brand-orange transition-all"
+                      value={quantity}
+                      onChange={e => setQuantity(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total a Pagar</p>
+                      <p className="text-3xl font-black text-brand-orange">{(Number(quantity) * currentProduct.basePrice).toLocaleString()} UR</p>
+                    </div>
+                  </div>
+
                   <Button 
-                    className="h-14 px-8 whitespace-nowrap w-full sm:w-auto text-lg" 
+                    className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-brand-orange/20"
                     onClick={handleInvest}
                     disabled={investing || remainingCooldown > 0}
                   >
-                    {investing ? 'Processando...' : remainingCooldown > 0 ? `Aguarde ${new Date(remainingCooldown * 1000).toISOString().substr(11, 8)}` : 'Aplicar Recursos'}
-                    {!investing && remainingCooldown === 0 && <ArrowRight className="w-5 h-5 ml-2" />}
+                    {investing ? 'Processando...' : remainingCooldown > 0 ? `Aguarde ${remainingCooldown}s` : 'Confirmar Compra'}
                   </Button>
+
+                  {errorMsg && <p className="text-red-400 text-xs font-bold animate-pulse text-center">{errorMsg}</p>}
+                  {successMsg && <p className="text-green-400 text-xs font-bold text-center">{successMsg}</p>}
                 </div>
-                {remainingCooldown > 0 && (
-                  <p className="mt-2 text-xs text-brand-orange font-bold flex items-center gap-2">
-                    <Clock className="w-3 h-3" />
-                    Período de Carência Ativo: 24h após o resgate. 
-                    Investimentos neste ativo estão bloqueados para garantir o equilíbrio do mercado.
-                  </p>
-                )}
-                {errorMsg && <p className="text-red-500 mt-3 text-sm font-medium">{errorMsg}</p>}
-                {successMsg && <p className="text-green-600 mt-3 text-sm font-medium flex items-center gap-1"><CheckCircle className="w-4 h-4" />{successMsg}</p>}
-                <p className="text-xs text-gray-400 mt-3">Saldo Disponível: <strong>{profile?.balance || 0} UR</strong></p>
+              </div>
+              <CardContent className="p-6 bg-gray-50 border-t">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Seu Saldo:</span>
+                  <span className="font-black text-gray-900">{profile?.balance?.toLocaleString()} UR</span>
+                </div>
               </CardContent>
             </Card>
           </div>
-        )}
-      </div>
-
-      {/* Minha Carteira */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-md shadow-brand-orange/5 border-orange-100">
-            <CardHeader className="bg-gradient-to-br from-brand-orange to-orange-600 rounded-t-xl text-white">
-              <CardTitle className="text-lg text-white">Resumo da Carteira</CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500 font-medium">Investido</span>
-                <div className="text-right">
-                  <span className="font-bold text-black block">{totalInvested.toFixed(2)} UR</span>
-                  <span className="text-[10px] text-gray-400 font-medium">{formatBRL(totalInvested)}</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500 font-medium">Valor Bruto Novo</span>
-                <div className="text-right">
-                  <span className="font-black text-brand-orange text-lg block">
-                    {totalCurrentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
-                  </span>
-                  <span className="text-xs text-brand-orange/60 font-bold">{formatBRL(totalCurrentValue)}</span>
-                </div>
-              </div>
-              <div className="pt-3 border-t border-gray-100 flex justify-between items-center bg-green-50 p-3 rounded-lg">
-                <span className="text-green-700 font-bold text-sm">Lucro Acumulado</span>
-                <div className="text-right">
-                  <span className="text-green-700 font-black block">+{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR</span>
-                  <span className="text-[10px] text-green-600 font-bold">{formatBRL(totalProfit)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="h-full">
-            <CardHeader className="bg-gray-50 border-b border-gray-100 flex flex-row items-center justify-between p-4">
-              <CardTitle className="text-lg">Meus Títulos</CardTitle>
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setActiveTab('ativos')} 
-                  className={`text-sm font-bold pb-2 border-b-2 transition-colors ${activeTab === 'ativos' ? 'text-brand-orange border-brand-orange' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-                >
-                  Ativos
-                </button>
-                <button 
-                  onClick={() => setActiveTab('resgatados')} 
-                  className={`text-sm font-bold pb-2 border-b-2 transition-colors ${activeTab === 'resgatados' ? 'text-brand-orange border-brand-orange' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-                >
-                  Resgatados
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 divide-y divide-gray-100 h-[400px] overflow-y-auto min-h-[300px]">
-              {loading ? (
-                <div className="p-6 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
-                  <div className="w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full animate-spin"></div>
-                  Carregando carteira...
-                </div>
-              ) : (
-                (() => {
-                  const filteredInvestments = investments.filter(inv => 
-                    activeTab === 'ativos' ? !inv.redeemed_at : !!inv.redeemed_at
-                  );
-
-                  if (filteredInvestments.length === 0) {
-                    return (
-                      <div className="p-8 text-center text-gray-500 flex flex-col items-center">
-                        <Wallet className="w-12 h-12 text-brand-orange/30 mb-3" />
-                        <p>Você não possui títulos {activeTab === 'ativos' ? 'ativos' : 'resgatados'}.</p>
-                      </div>
-                    );
-                  }
-
-                  return filteredInvestments.map((inv) => {
-                    const isRedeemed = !!inv.redeemed_at;
-                    const currentAmount = calculateCurrentAmount(inv, selicRate);
-                    const profit = currentAmount - inv.amount;
-                    
-                    return (
-                      <div key={inv.id} className={`p-5 transition-colors ${isRedeemed ? 'bg-gray-50/50' : 'hover:bg-orange-50/30'}`}>
-                        <div className="flex justify-between mb-1">
-                          <span className={`font-bold ${isRedeemed ? 'text-gray-500' : 'text-black'}`}>{inv.type}</span>
-                          <span className={`text-xs font-bold px-2 py-1 rounded ${
-                            inv.rate_type === 'CDI' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {inv.rate_type === 'CDI' ? `${inv.rate_value}% CDI` : `${inv.rate_value}% a.a`}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-end mt-4">
-                          <div>
-                            <p className="text-xs text-gray-500">Investido: {inv.amount} UR</p>
-                            <div className="flex items-baseline gap-2">
-                              <span className={`text-2xl font-black tracking-tight ${isRedeemed ? 'text-gray-400' : 'text-brand-orange'}`}>
-                                {currentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                              </span>
-                              <span className="text-xs uppercase text-gray-400 font-bold">UR</span>
-                            </div>
-                            {profit > 0 && !isRedeemed && (
-                              <p className="text-xs text-green-600 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro</p>
-                            )}
-                            {profit < 0 && !isRedeemed && (
-                              <p className="text-xs text-red-600 font-medium">{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de prejuízo momentâneo</p>
-                            )}
-                            {profit > 0 && isRedeemed && (
-                              <p className="text-xs text-gray-500 font-medium">+{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de lucro realizado</p>
-                            )}
-                            {profit < 0 && isRedeemed && (
-                              <p className="text-xs text-gray-500 font-medium">{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR de perda realizada</p>
-                            )}
-                          </div>
-                          
-                          {!isRedeemed ? (
-                            <button 
-                              onClick={() => handleRedeem(inv)}
-                              className="text-sm font-bold text-brand-orange hover:text-orange-700 bg-orange-100 px-3 py-2 rounded-lg transition-colors"
-                            >
-                              Resgatar
-                            </button>
-                          ) : (
-                            <span className="text-xs font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> Resgatado
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  });
-                })()
-              )}
-            </CardContent>
-          </Card>
         </div>
+      )}
 
-      </div>
+      {activeTab === 'portfolio' && (
+        <div className="animate-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white border-orange-100">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-brand-orange">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Investido</p>
+                  <p className="text-2xl font-black text-gray-900">{Math.round(totalInvested).toLocaleString()} UR</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-orange-100">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor de Mercado</p>
+                  <p className="text-2xl font-black text-green-600">{Math.round(totalCurrentValue).toLocaleString()} UR</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-orange-100">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                  <TrendingUpDown className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lucro Total</p>
+                  <p className={`text-2xl font-black ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {totalProfit >= 0 ? '+' : ''}{Math.round(totalProfit).toLocaleString()} UR
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+          {activeInvestments.length === 0 ? (
+            <Card className="p-20 text-center border-dashed border-2 bg-gray-50">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
+                <BarChart3 className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 mb-2">Sua carteira está vazia</h2>
+              <p className="text-gray-500 max-w-sm mx-auto">Vá ao mercado e compre seus primeiros títulos para começar a lucrar.</p>
+              <Button variant="outline" className="mt-8 rounded-xl" onClick={() => setActiveTab('market')}>Ver Mercado</Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeInvestments.map(inv => {
+                const currentTotal = calculateCurrentAmount(inv);
+                const pnl = ((currentTotal - inv.amount) / inv.amount) * 100;
+                const unitPrice = currentTotal / (inv.quantity || 1);
+                
+                return (
+                  <div key={inv.id}>
+                    <Card className="group hover:shadow-2xl transition-all border-none bg-white overflow-hidden shadow-sm">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg font-black text-gray-900">{inv.type}</CardTitle>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                              {inv.quantity || 1} Títulos • Comprados em {new Date(inv.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 ${pnl >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                            {pnl.toFixed(1)}%
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="bg-gray-50 p-6 rounded-2xl flex justify-between items-center relative overflow-hidden">
+                          <div className="relative z-10">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor Atual Total</p>
+                            <p className={`text-3xl font-black ${pnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {Math.round(currentTotal)} <span className="text-sm">UR</span>
+                            </p>
+                          </div>
+                          <div className="text-right relative z-10">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Unitário</p>
+                            <p className="font-bold text-gray-900">{unitPrice.toFixed(2)} UR</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-gray-400 font-bold uppercase tracking-widest mb-1">Custo Total</p>
+                            <p className="font-black text-gray-900">{inv.amount} UR</p>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-gray-400 font-bold uppercase tracking-widest mb-1">Lucro Bruto</p>
+                            <p className={`font-black ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {Math.round(currentTotal - inv.amount)} UR
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button 
+                          className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-xs"
+                          onClick={() => handleRedeem(inv)}
+                        >
+                          Vender Títulos
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <Card className="border-none shadow-sm overflow-hidden bg-white">
+          <CardContent className="p-0">
+            {investments.filter(i => !!i.redeemed_at).length === 0 ? (
+              <div className="p-20 text-center text-gray-400">Nenhuma operação encerrada.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Ativo</th>
+                      <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Data</th>
+                      <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Investido</th>
+                      <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendido</th>
+                      <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {investments.filter(i => !!i.redeemed_at).map(inv => {
+                      const profit = (inv.redeemed_amount || 0) - inv.amount;
+                      return (
+                        <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-6">
+                            <p className="font-bold text-gray-900">{inv.type}</p>
+                            <p className="text-xs text-gray-400">{inv.quantity || 1} títulos</p>
+                          </td>
+                          <td className="p-6 text-sm text-gray-500">
+                            {new Date(inv.created_at).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="p-6 font-bold text-gray-700">{inv.amount} UR</td>
+                          <td className="p-6 font-bold text-gray-700">{inv.redeemed_amount} UR</td>
+                          <td className={`p-6 font-black ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {profit > 0 ? '+' : ''}{Math.round(profit)} UR
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SQL Setup Instruction */}
+      <Card className="mt-12 bg-brand-orange/5 border-dashed border-2 border-brand-orange/20">
+        <CardContent className="p-8">
+          <div className="flex gap-6">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-brand-orange shadow-sm shrink-0">
+              <Info className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-gray-900 mb-2">Habilitar Mercado de Títulos</h3>
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                Este novo sistema requer colunas adicionais para gerenciar a <strong>Quantidade</strong> e o <strong>Preço Unitário</strong>. 
+                Se você vir erros ao comprar, execute o SQL abaixo no seu Supabase:
+              </p>
+              <pre className="bg-gray-900 p-4 rounded-xl text-[11px] font-mono text-brand-orange overflow-x-auto border border-gray-800">
+{`ALTER TABLE public.investments 
+ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT 1,
+ADD COLUMN IF NOT EXISTS purchase_unit_price numeric;
+
+UPDATE public.investments SET quantity = 1, purchase_unit_price = amount WHERE quantity IS NULL;`}
+              </pre>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

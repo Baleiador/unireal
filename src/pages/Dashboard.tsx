@@ -390,7 +390,7 @@ export function Dashboard() {
                     <div className="text-right">
                       <p className="text-[10px] uppercase font-bold text-gray-400">Valor Atual Estimado</p>
                       <p className="text-sm font-black text-brand-orange">
-                        {calculateCurrentAmount(investments.find(i => i.id === selectedInvId)!, selicRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
+                        {calculateCurrentAmount(investments.find(i => i.id === selectedInvId)!).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} UR
                       </p>
                     </div>
                   </div>
