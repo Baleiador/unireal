@@ -622,30 +622,6 @@ CREATE POLICY "Users can update their own investments"
         </Card>
       )}
 
-      {/* SQL Setup Instruction */}
-      <Card className="mt-12 bg-brand-orange/5 border-dashed border-2 border-brand-orange/20">
-        <CardContent className="p-8">
-          <div className="flex gap-6">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-brand-orange shadow-sm shrink-0">
-              <Info className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-gray-900 mb-2">Habilitar Mercado de Títulos</h3>
-              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                Este novo sistema requer colunas adicionais para gerenciar a <strong>Quantidade</strong> e o <strong>Preço Unitário</strong>. 
-                Se você vir erros ao comprar, execute o SQL abaixo no seu Supabase:
-              </p>
-              <pre className="bg-gray-900 p-4 rounded-xl text-[11px] font-mono text-brand-orange overflow-x-auto border border-gray-800">
-{`ALTER TABLE public.investments 
-ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT 1,
-ADD COLUMN IF NOT EXISTS purchase_unit_price numeric;
-
-UPDATE public.investments SET quantity = 1, purchase_unit_price = amount WHERE quantity IS NULL;`}
-              </pre>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
