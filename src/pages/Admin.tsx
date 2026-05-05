@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users, Bell, Trash2, Megaphone } from 'lucide-react';
 import { Navigate } from 'react-router';
 
 type Profile = {
@@ -28,11 +28,18 @@ export function Admin() {
   const [success, setSuccess] = useState(false);
   
   // Settings state
-  const [activeTab, setActiveTab] = useState<'users' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements'>('users');
   const [exchangeRate, setExchangeRate] = useState<string>('0.01');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successSettings, setSuccessSettings] = useState(false);
   const [dbError, setDbError] = useState<boolean>(false);
+  
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [annTitle, setAnnTitle] = useState('');
+  const [annContent, setAnnContent] = useState('');
+  const [annTargetGrades, setAnnTargetGrades] = useState<string[]>([]);
+  const [creatingAnn, setCreatingAnn] = useState(false);
 
   // Protect route
   if (profile && !profile.is_admin) {
@@ -42,7 +49,68 @@ export function Admin() {
   useEffect(() => {
     fetchStudents();
     fetchSettings();
-  }, [profile?.id]);
+    if (activeTab === 'announcements') {
+      fetchAnnouncements();
+    }
+  }, [profile?.id, activeTab]);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error) setAnnouncements(data || []);
+      else if (error.code === '42P01') setDbError(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateAnnouncement = async () => {
+    if (!annTitle || !annContent || annTargetGrades.length === 0) {
+      alert("Preencha todos os campos e selecione ao menos uma turma.");
+      return;
+    }
+
+    setCreatingAnn(true);
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .insert({
+          title: annTitle,
+          content: annContent,
+          target_grades: annTargetGrades,
+          admin_id: profile?.id
+        });
+
+      if (error) throw error;
+      
+      setAnnTitle('');
+      setAnnContent('');
+      setAnnTargetGrades([]);
+      fetchAnnouncements();
+      alert("Aviso publicado com sucesso!");
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+      setDbError(true);
+    } finally {
+      setCreatingAnn(false);
+    }
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este aviso?")) return;
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) throw error;
+      setAnnouncements(announcements.filter(a => a.id !== id));
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const uniqueGrades = Array.from(new Set(students.map(s => s.grade).filter(Boolean))) as string[];
 
   const fetchSettings = async () => {
     try {
@@ -194,11 +262,11 @@ export function Admin() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : <Settings className="w-8 h-8 text-brand-orange" />}
-            {activeTab === 'users' ? 'Gerar Unireais' : 'Configurações'}
+            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : activeTab === 'announcements' ? <Megaphone className="w-8 h-8 text-brand-orange" /> : <Settings className="w-8 h-8 text-brand-orange" />}
+            {activeTab === 'users' ? 'Gerar Unireais' : activeTab === 'announcements' ? 'Sistema de Avisos' : 'Configurações'}
           </h1>
           <p className="text-gray-500">
-            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : 'Gerencie os parâmetros globais da economia.'}
+            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : activeTab === 'announcements' ? 'Comunique informções importantes para turmas específicas.' : 'Gerencie os parâmetros globais da economia.'}
           </p>
         </div>
         <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
@@ -208,6 +276,13 @@ export function Admin() {
           >
             <Users className="w-4 h-4" />
             Alunos
+          </button>
+          <button 
+            onClick={() => setActiveTab('announcements')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'announcements' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Bell className="w-4 h-4" />
+            Avisos
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -285,6 +360,124 @@ export function Admin() {
             )}
           </CardContent>
         </Card>
+      ) : activeTab === 'announcements' ? (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card>
+            <CardHeader className="p-6 border-b border-gray-100 bg-gray-50/50">
+              <CardTitle className="text-xl flex items-center gap-2 text-brand-orange">
+                <Megaphone className="w-6 h-6" />
+                Novo Comunicado
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Título do Aviso</label>
+                  <Input 
+                    placeholder="Ex: Reunião da Feira Unireal"
+                    value={annTitle}
+                    onChange={e => setAnnTitle(e.target.value)}
+                    className="font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conteúdo da Mensagem</label>
+                  <textarea 
+                    className="w-full min-h-[100px] p-4 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-1 focus:ring-brand-orange outline-none resize-none text-sm transition-all"
+                    placeholder="Descreva o que os alunos precisam saber..."
+                    value={annContent}
+                    onChange={e => setAnnContent(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Público-Alvo (Turmas)</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setAnnTargetGrades(annTargetGrades.includes('TODOS') ? [] : ['TODOS'])}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all ${
+                        annTargetGrades.includes('TODOS') 
+                        ? 'bg-gray-900 text-white shadow-lg' 
+                        : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-900'
+                      }`}
+                    >
+                      Todos os Alunos
+                    </button>
+                    {uniqueGrades.map(grade => (
+                      <button
+                        key={grade}
+                        onClick={() => {
+                          if (annTargetGrades.includes('TODOS')) {
+                            setAnnTargetGrades([grade]);
+                          } else if (annTargetGrades.includes(grade)) {
+                            setAnnTargetGrades(annTargetGrades.filter(g => g !== grade));
+                          } else {
+                            setAnnTargetGrades([...annTargetGrades, grade]);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all ${
+                          annTargetGrades.includes(grade) && !annTargetGrades.includes('TODOS')
+                          ? 'bg-brand-orange text-white shadow-lg' 
+                          : 'bg-white text-gray-500 border border-gray-200 hover:border-brand-orange'
+                        }`}
+                      >
+                        {grade}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="pt-4 flex justify-end">
+                  <Button 
+                    onClick={handleCreateAnnouncement}
+                    disabled={creatingAnn}
+                    className="h-14 px-10 rounded-2xl font-black text-lg shadow-lg shadow-brand-orange/10"
+                  >
+                    {creatingAnn ? 'Publicando...' : 'Publicar Agora'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-6 border-b border-gray-100">
+              <CardTitle className="text-xl">Histórico de Avisos</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {announcements.length === 0 ? (
+                <div className="p-12 text-center text-gray-400">Nenhum aviso publicado.</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {announcements.map(ann => (
+                    <div key={ann.id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-gray-900">{ann.title}</h4>
+                          <p className="text-sm text-gray-600 line-clamp-2">{ann.content}</p>
+                          <div className="flex flex-wrap gap-1 mt-3">
+                            {ann.target_grades.map((g: string) => (
+                              <span key={g} className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-black uppercase rounded">
+                                {g}
+                              </span>
+                            ))}
+                            <span className="ml-2 text-[9px] text-gray-400 font-bold uppercase tracking-widest self-center">
+                              {new Date(ann.created_at).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => deleteAnnouncement(ann.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <Card>
@@ -384,6 +577,46 @@ export function Admin() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'announcements' && dbError && (
+        <div className="mt-8 p-8 bg-red-50 border-2 border-red-200 rounded-3xl animate-in zoom-in-95 duration-300">
+          <div className="flex items-center gap-4 text-red-600 mb-6">
+            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
+              <Megaphone className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Tabela não encontrada</h3>
+              <p className="opacity-80">Rode o script SQL abaixo para habilitar o sistema de avisos.</p>
+            </div>
+          </div>
+          <div className="bg-gray-900 rounded-2xl p-6 overflow-x-auto mb-6 border-4 border-red-100 shadow-xl">
+            <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
+              <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">SQL Announcements Script</span>
+              <span className="text-red-400 text-[10px] font-bold px-2 py-0.5 rounded border border-red-400/30 uppercase">Executor Obrigatório</span>
+            </div>
+            <pre className="text-blue-400 text-sm font-mono leading-relaxed">
+{`CREATE TABLE public.announcements (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    title text NOT NULL,
+    content text NOT NULL,
+    target_grades text[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    admin_id uuid REFERENCES public.profiles(id)
+);
+
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public select" ON public.announcements 
+FOR SELECT USING (true);
+
+CREATE POLICY "Admin full access" ON public.announcements 
+FOR ALL TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());`}
+            </pre>
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -46,6 +46,8 @@ export function Dashboard() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [selectedInvId, setSelectedInvId] = useState<string | 'all'>('all');
   const [selicRate, setSelicRate] = useState<number>(10.5);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [closedAnns, setClosedAnns] = useState<string[]>([]);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -53,8 +55,33 @@ export function Dashboard() {
       fetchActivities();
       fetchInvestments();
       fetchSelic();
+      fetchAnnouncements();
     }
   }, [profile, showAll]);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        if (error.code === '42P01') return; // Table not created yet
+        throw error;
+      }
+      
+      // Filter in JS for simplicity with array targeting
+      const filtered = (data || []).filter(ann => 
+        ann.target_grades.includes('TODOS') || 
+        (profile?.grade && ann.target_grades.includes(profile.grade))
+      );
+      
+      setAnnouncements(filtered);
+    } catch (err) {
+      console.error("Error fetching announcements:", err);
+    }
+  };
 
   // Update chart every 5 seconds for "real-time" feel
   useEffect(() => {
@@ -185,6 +212,38 @@ export function Dashboard() {
         <h1 className="text-3xl font-bold text-black mb-2">Olá, {profile?.full_name?.split(' ')[0]}! 👋</h1>
         <p className="text-gray-500">Confira seu saldo e atividades recentes.</p>
       </header>
+
+      {/* Announcements Section */}
+      {announcements.filter(a => !closedAnns.includes(a.id)).length > 0 && (
+        <div className="space-y-4 animate-in slide-in-from-top-4 duration-500">
+          {announcements.filter(a => !closedAnns.includes(a.id)).map(ann => (
+            <div 
+              key={ann.id} 
+              className="bg-gray-900 border-l-4 border-brand-orange p-5 rounded-2xl shadow-xl flex items-start gap-4 relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 p-8 bg-brand-orange/10 rounded-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+              <div className="w-12 h-12 bg-brand-orange/20 rounded-xl flex items-center justify-center text-brand-orange shrink-0">
+                <Megaphone className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="font-bold text-white text-lg">{ann.title}</h3>
+                  <button 
+                    onClick={() => setClosedAnns([...closedAnns, ann.id])}
+                    className="text-white/40 hover:text-white transition-colors p-1"
+                  >
+                    <CloseIcon className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-white/70 text-sm leading-relaxed whitespace-pre-line">{ann.content}</p>
+                <p className="text-[10px] text-white/30 mt-3 font-bold uppercase tracking-widest">
+                  Publicado em: {new Date(ann.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Balance Card */}

@@ -20,9 +20,15 @@ export const getOrganicOscillation = (seconds: number, seed: number, volatility:
   let combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
 
   // Add downward bias (luck is against the investor)
-  // If volatility is high, we subtract a small constant to skew the distribution toward losses
+  // If volatility is high, we subtract a constant to skew the distribution toward losses
   if (volatility >= 0.20) {
-    combined -= 0.15; // 15% downward pressure on high-risk
+    combined -= 0.25; // 25% downward pressure on high-risk
+    
+    // Asymmetric Risk: Gravity is stronger in high risk.
+    // If the wave is already negative, we amplify the drop.
+    if (combined < 0) {
+      combined *= 1.3; 
+    }
   }
   
   return combined * volatility;
@@ -63,6 +69,13 @@ export const calculateCurrentAmount = (investment: Investment, currentSelic: num
     const seed = investment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const wave = getOrganicOscillation(secondsPassed, seed, volatility);
     currentAmount = currentAmount * (1 + wave);
+
+    // High-Risk Decay: The longer you hold extremely volatile assets, 
+    // the more they are eaten by "market friction" (decay).
+    if (volatility >= 0.30) {
+      const annualFriction = 0.12; // 12% annual decay for pure risk
+      currentAmount *= Math.pow(1 - annualFriction, yearsPassed);
+    }
   }
 
   return currentAmount;
