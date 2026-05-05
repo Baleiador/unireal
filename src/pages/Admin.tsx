@@ -234,11 +234,11 @@ Deseja continuar?`)) return;
     
     setResetting(true);
     try {
-      // Delete everything that is NOT in the approved list
+      // Deleta tudo que NÃO estiver na lista de nomes aprovados
       const { error } = await supabase
         .from('investments')
         .delete()
-        .filter('type', 'not.in', `(${approvedNames.map(n => `"${n}"`).join(',')})`);
+        .not('type', 'in', approvedNames);
 
       if (error) throw error;
 
