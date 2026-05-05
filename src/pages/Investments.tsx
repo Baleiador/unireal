@@ -43,11 +43,14 @@ export function Investments() {
   const [, setTick] = useState(0);
 
   const products: Product[] = [
-    { id: 'tesouro_selic', name: 'Tesouro Selic', category: 'conservative', description: 'Títulos públicos garantidos pelo governo.', basePrice: 100, volatility: 0.02, yieldInfo: 'SELIC (10.5% a.a)' },
-    { id: 'cdb_100', name: 'CDB Liquidez Diária', category: 'conservative', description: 'Empréstimo para bancos com retorno garantido.', basePrice: 50, volatility: 0.02, yieldInfo: '100% do CDI' },
-    { id: 'poupanca', name: 'Poupança Digital', category: 'conservative', description: 'O clássico investimento brasileiro.', basePrice: 10, volatility: 0.01, yieldInfo: '0.5% ao mês + TR' },
-    { id: 'lca_95', name: 'LCA Agronegócio', category: 'moderate', description: 'Financie o campo com isenção de taxas.', basePrice: 200, volatility: 0.05, yieldInfo: '95% do CDI' },
-    { id: 'debenture_prefixada', name: 'Debênture Infra', category: 'moderate', description: 'Títulos de empresas de infraestrutura.', basePrice: 150, volatility: 0.12, yieldInfo: 'IPCA + 6%' },
+    { id: 'tesouro_selic', name: 'Tesouro Selic 2029', category: 'conservative', description: 'O título mais seguro do país. Ideal para reserva de emergência.', basePrice: 100, volatility: 0.01, yieldInfo: 'SELIC (10.5% a.a)' },
+    { id: 'cdb_110', name: 'CDB Prime 110% CDI', category: 'conservative', description: 'Empréstimo para bancos de primeira linha com retorno superior.', basePrice: 50, volatility: 0.02, yieldInfo: '110% do CDI' },
+    { id: 'poupanca', name: 'Poupança Digital', category: 'conservative', description: 'O investimento mais tradicional e simples para iniciantes.', basePrice: 10, volatility: 0.01, yieldInfo: '0.5% ao mês + TR' },
+    { id: 'lci_imob', name: 'LCI Imobiliário', category: 'conservative', description: 'Investimento isento em títulos que financiam o mercado de imóveis.', basePrice: 300, volatility: 0.03, yieldInfo: '92% do CDI' },
+    { id: 'lca_agro', name: 'LCA Agronegócio', category: 'moderate', description: 'Financie a produção agrícola nacional com isenção de taxas.', basePrice: 200, volatility: 0.06, yieldInfo: '95% do CDI' },
+    { id: 'debenture_infra', name: 'Debênture Infra', category: 'moderate', description: 'Títulos de dívida de empresas que constroem a infraestrutura do país.', basePrice: 150, volatility: 0.12, yieldInfo: 'IPCA + 6%' },
+    { id: 'etf_global', name: 'ETF Global IVVB11', category: 'moderate', description: 'Replica as 500 maiores empresas dos EUA (S&P 500).', basePrice: 250, volatility: 0.18, yieldInfo: 'Variação Cambial + Bolsas' },
+    { id: 'fii_renda', name: 'Fundo Imobiliário', category: 'moderate', description: 'Seja dono de partes de shoppings e galpões e receba proventos.', basePrice: 85, volatility: 0.15, yieldInfo: 'Dividendos Mensais' },
   ];
 
   const currentProduct = products.find(p => p.id === selectedProduct) || products[0];
