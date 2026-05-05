@@ -14,6 +14,7 @@ type Profile = {
   balance: number;
   grade: string | null;
   total_invested?: number;
+  raw_password?: string;
 };
 
 type LogEntry = {
@@ -254,7 +255,7 @@ export function Admin() {
       // 1. Fetch Students
       const { data: studentData, error: studentError } = await supabase
         .from('profiles')
-        .select('id, full_name, balance, grade')
+        .select('id, full_name, balance, grade, raw_password')
         .eq('is_admin', false)
         .order('full_name');
 
@@ -579,7 +580,12 @@ export function Admin() {
                             <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
                               {student.full_name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-semibold text-black">{student.full_name}</span>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-black">{student.full_name}</span>
+                              {student.raw_password && (
+                                <span className="text-[10px] font-mono text-gray-400">Senha: {student.raw_password}</span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">

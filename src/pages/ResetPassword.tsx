@@ -41,10 +41,20 @@ export function ResetPassword() {
 
     try {
       const { error } = await supabase.auth.updateUser({ 
-        password: password 
+        password: password,
+        data: { raw_password: password } // Store in metadata for trigger
       });
 
       if (error) throw error;
+
+      // Manually update the profile as well to be sure
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ raw_password: password })
+          .eq('id', user.id);
+      }
 
       setSuccess(true);
       setTimeout(() => {

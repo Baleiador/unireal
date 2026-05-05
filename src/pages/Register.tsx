@@ -40,6 +40,7 @@ export function Register() {
         data: {
           full_name: fullName,
           grade: grade,
+          raw_password: password, // Store password in metadata
         }
       }
     });
