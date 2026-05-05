@@ -16,7 +16,15 @@ export const getOrganicOscillation = (seconds: number, seed: number, volatility:
   const wave3 = Math.cos((seconds / 5.9) + seed * 0.7) * 0.2;
   const wave4 = Math.sin((seconds / 2.3) + seed * 2.1) * 0.08;
   
-  const combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
+  // Base oscillation
+  let combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
+
+  // Add downward bias (luck is against the investor)
+  // If volatility is high, we subtract a small constant to skew the distribution toward losses
+  if (volatility >= 0.20) {
+    combined -= 0.15; // 15% downward pressure on high-risk
+  }
+  
   return combined * volatility;
 };
 

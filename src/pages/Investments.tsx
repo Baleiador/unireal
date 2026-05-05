@@ -28,7 +28,87 @@ export function Investments() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'ativos' | 'resgatados'>('ativos');
+  const [remainingCooldown, setRemainingCooldown] = useState<number>(0);
+  const [isHighVolume, setIsHighVolume] = useState(false);
   const [, setTick] = useState(0);
+
+  const getProductName = (slug: string) => {
+    switch(slug) {
+      case 'cdb_110': return 'CDB MAX Plus';
+      case 'lci_fix': return 'LCI Prefixada';
+      case 'cdb_100': return 'CDB Liquidez Diária';
+      case 'tesouro_selic': return 'Tesouro Selic';
+      case 'poupanca': return 'Poupança';
+      case 'lca_95': return 'LCA Agronegócio';
+      case 'cdb_120': return 'CDB Banco Secundário';
+      case 'debenture_prefixada': return 'Debênture de Infraestrutura';
+      case 'crypto_strat': return 'Criptoativo Estratégico';
+      case 'stocks_growth': return 'Ações High Growth';
+      case 'vc_fund': return 'Venture Capital Hub';
+      default: return '';
+    }
+  };
+
+  const checkCooldown = async (slug: string) => {
+    if (!profile) return;
+    const typeName = getProductName(slug);
+    
+    try {
+      // Check global volume
+      const { count, error: countError } = await supabase
+        .from('investments')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', typeName)
+        .is('redeemed_at', null);
+
+      if (countError) throw countError;
+      const volume = count || 0;
+      setIsHighVolume(volume >= 10);
+
+      // Check user's last redemption
+      const { data: lastRedeem, error: lastError } = await supabase
+        .from('investments')
+        .select('redeemed_at')
+        .eq('user_id', profile.id)
+        .eq('type', typeName)
+        .not('redeemed_at', 'is', null)
+        .order('redeemed_at', { ascending: false })
+        .limit(1);
+
+      if (lastError) throw lastError;
+
+      if (lastRedeem && lastRedeem.length > 0) {
+        const lastTime = new Date(lastRedeem[0].redeemed_at).getTime();
+        const now = new Date().getTime();
+        const secondsPassed = (now - lastTime) / 1000;
+        const cooldownNeeded = (volume >= 10) ? 300 : 90;
+        
+        if (secondsPassed < cooldownNeeded) {
+          setRemainingCooldown(Math.ceil(cooldownNeeded - secondsPassed));
+        } else {
+          setRemainingCooldown(0);
+        }
+      } else {
+        setRemainingCooldown(0);
+      }
+    } catch (err) {
+      console.error("Error checking cooldown:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProduct) {
+      checkCooldown(selectedProduct);
+    }
+  }, [selectedProduct]);
+
+  // Tick for countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemainingCooldown(prev => prev > 0 ? prev - 1 : 0);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchSelic = async () => {
     try {
@@ -87,6 +167,14 @@ export function Investments() {
     setInvesting(true);
     setErrorMsg('');
     setSuccessMsg('');
+
+    // Re-check cooldown just before investing to be safe
+    await checkCooldown(selectedProduct);
+    if (remainingCooldown > 0) {
+      setErrorMsg(`Aguarde o período de resfriamento (${remainingCooldown}s) para investir novamente neste ativo.`);
+      setInvesting(false);
+      return;
+    }
 
     try {
       // Products configuration
@@ -593,12 +681,19 @@ CREATE POLICY "Users can update their own investments"
                   <Button 
                     className="h-14 px-8 whitespace-nowrap w-full sm:w-auto text-lg" 
                     onClick={handleInvest}
-                    disabled={investing}
+                    disabled={investing || remainingCooldown > 0}
                   >
-                    {investing ? 'Processando...' : 'Aplicar Recursos'}
-                    {!investing && <ArrowRight className="w-5 h-5 ml-2" />}
+                    {investing ? 'Processando...' : remainingCooldown > 0 ? `Aguarde ${remainingCooldown}s` : 'Aplicar Recursos'}
+                    {!investing && remainingCooldown === 0 && <ArrowRight className="w-5 h-5 ml-2" />}
                   </Button>
                 </div>
+                {remainingCooldown > 0 && (
+                  <p className="mt-2 text-xs text-brand-orange font-bold flex items-center gap-2">
+                    <Clock className="w-3 h-3" />
+                    Período de Resfriamento Ativo {isHighVolume ? '(Volume Elevado: 300s)' : '(90s)'}. 
+                    Evite investir em ativos resgatados recentemente para garantir a estabilidade do mercado.
+                  </p>
+                )}
                 {errorMsg && <p className="text-red-500 mt-3 text-sm font-medium">{errorMsg}</p>}
                 {successMsg && <p className="text-green-600 mt-3 text-sm font-medium flex items-center gap-1"><CheckCircle className="w-4 h-4" />{successMsg}</p>}
                 <p className="text-xs text-gray-400 mt-3">Saldo Disponível: <strong>{profile?.balance || 0} UR</strong></p>
