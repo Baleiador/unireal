@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Navigate } from 'react-router';
 import { calculateCurrentAmount, Investment } from '../lib/investment-utils';
 
@@ -22,7 +22,13 @@ type LogEntry = {
   amount: number;
   description: string;
   date: string;
-  metadata?: any;
+  change: 'positive' | 'negative' | 'neutral';
+  metadata?: {
+    profit?: number;
+    profitPercent?: number;
+    targetName?: string;
+    productType?: string;
+  };
 };
 
 export function Admin() {
@@ -30,6 +36,7 @@ export function Admin() {
   const [students, setStudents] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [systemStats, setSystemStats] = useState({ totalBalance: 0, totalInvested: 0 });
   
   // Modal state
   const [selectedStudent, setSelectedStudent] = useState<Profile | null>(null);
@@ -37,10 +44,12 @@ export function Admin() {
   const [minting, setMinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [, setTick] = useState(0);
 
   // Student Details Modal
   const [detailsStudent, setDetailsStudent] = useState<Profile | null>(null);
   const [studentInvestments, setStudentInvestments] = useState<Investment[]>([]);
+  const [allActiveInvestments, setAllActiveInvestments] = useState<Investment[]>([]);
   const [studentLogs, setStudentLogs] = useState<LogEntry[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'portfolio' | 'logs'>('portfolio');
@@ -53,6 +62,9 @@ export function Admin() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [successSettings, setSuccessSettings] = useState(false);
   const [dbError, setDbError] = useState<boolean>(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
   
   // Announcements state
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -73,6 +85,13 @@ export function Admin() {
       fetchAnnouncements();
     }
   }, [profile?.id, activeTab]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchAnnouncements = async () => {
     try {
@@ -193,6 +212,42 @@ export function Admin() {
     }
   };
 
+  const handleResetSystem = async () => {
+    if (resetConfirmText !== 'ZERAR') {
+      alert("Por favor, digite ZERAR para confirmar.");
+      return;
+    }
+
+    setResetting(true);
+    try {
+      // 1. Delete all transactions
+      const { error: txError } = await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (txError) throw txError;
+
+      // 2. Delete all investments
+      const { error: invError } = await supabase.from('investments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (invError) throw invError;
+
+      // 3. Reset all student balances to 0
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ balance: 0 })
+        .eq('is_admin', false);
+      
+      if (profileError) throw profileError;
+
+      alert("Sistema zerado com sucesso! Todos os alunos agora possuem saldo 0 e histórico limpo.");
+      setResetModalOpen(false);
+      setResetConfirmText('');
+      fetchStudents();
+      await refreshProfile();
+    } catch (err: any) {
+      alert("Erro ao zerar sistema: " + err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -211,16 +266,27 @@ export function Admin() {
         .select('*')
         .is('redeemed_at', null);
 
-      if (invError) throw invError;
+      if (invError) {
+        console.error('Investments error:', invError);
+        // Don't throw here to at least show students
+      }
+      
+      const activeInvs = invData || [];
+      setAllActiveInvestments(activeInvs);
 
       const studentsWithTotals = (studentData || []).map(student => {
-        const studentInvs = (invData || []).filter(inv => inv.user_id === student.id);
+        const studentInvs = activeInvs.filter(inv => inv.user_id === student.id);
         const totalInvested = studentInvs.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0);
         return {
           ...student,
           total_invested: totalInvested
         };
       });
+
+      // Calculate total stats
+      const totalBal = (studentData || []).reduce((acc, s) => acc + (s.balance || 0), 0);
+      const totalInv = activeInvs.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0);
+      setSystemStats({ totalBalance: totalBal, totalInvested: totalInv });
 
       setStudents(studentsWithTotals);
     } catch (err) {
@@ -265,38 +331,57 @@ export function Admin() {
       // Add transfers
       txs?.forEach(tx => {
         const isSender = tx.sender_id === student.id;
-        const isMint = tx.sender && tx.sender.full_name === 'Sistema' || !tx.sender_id; // Check if it's from system
+        const isMint = (tx.sender && tx.sender.full_name === 'Sistema') || !tx.sender_id;
         
         logs.push({
           id: tx.id,
           type: isMint ? 'mint' : 'transfer',
           amount: tx.amount,
           date: tx.created_at,
+          change: isMint ? 'positive' : (isSender ? 'negative' : 'positive'),
           description: isMint 
-            ? `Recebeu recompensa do Professor` 
+            ? `Recebeu premiação do sistema` 
             : isSender 
-              ? `Enviou para ${tx.receiver?.full_name || 'Usuário'}`
-              : `Recebeu de ${tx.sender?.full_name || 'Usuário'}`
+              ? `Transferência para ${tx.receiver?.full_name || 'Outro Aluno'}`
+              : `Transferência de ${tx.sender?.full_name || 'Outro Aluno'}`,
+          metadata: {
+            targetName: isSender ? tx.receiver?.full_name : tx.sender?.full_name
+          }
         });
       });
 
       // Add investment events
       invs?.forEach(allInv => {
+        // Purchase entry
         logs.push({
           id: `inv-${allInv.id}`,
           type: 'investment',
           amount: allInv.amount,
           date: allInv.created_at,
-          description: `Comprou título: ${allInv.type}`
+          change: 'negative',
+          description: `Compra de Ativo: ${allInv.type}`,
+          metadata: {
+            productType: allInv.type
+          }
         });
 
+        // Redemption entry (if it happened)
         if (allInv.redeemed_at && allInv.redeemed_amount) {
+          const profit = allInv.redeemed_amount - allInv.amount;
+          const profitPercent = (profit / allInv.amount) * 100;
+          
           logs.push({
             id: `red-${allInv.id}`,
             type: 'redemption',
             amount: allInv.redeemed_amount,
             date: allInv.redeemed_at,
-            description: `Vendeu título: ${allInv.type}`
+            change: 'positive',
+            description: `Venda de Ativo: ${allInv.type}`,
+            metadata: {
+              profit,
+              profitPercent,
+              productType: allInv.type
+            }
           });
         }
       });
@@ -423,20 +508,52 @@ export function Admin() {
       </header>
 
       {activeTab === 'users' ? (
-        <Card>
-          <CardContent className="p-0">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-              <div className="relative max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input
-                  type="text"
-                  placeholder="Buscar aluno pelo nome..."
-                  className="pl-12 bg-white"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="bg-brand-orange/5 border-brand-orange/10">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-brand-orange shadow-sm">
+                  <Coins className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Saldo Total (Alunos)</p>
+                  <p className="text-2xl font-black text-black">{Math.round(systemStats.totalBalance).toLocaleString()} UR</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50/30 border-green-100">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-green-600 shadow-sm">
+                  <BarChart className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total em Carteira (Investido)</p>
+                  <p className="text-2xl font-black text-green-600">
+                    {Math.round(allActiveInvestments.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0)).toLocaleString()} UR
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="relative w-full max-w-md">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar aluno pelo nome..."
+                    className="pl-12 bg-white h-12 rounded-xl"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchStudents} className="shrink-0 h-12 px-6 rounded-xl font-bold bg-white">
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Sincronizar
+                </Button>
               </div>
-            </div>
 
             {loading ? (
               <div className="p-12 text-center text-gray-500">Carregando lista de alunos...</div>
@@ -473,7 +590,10 @@ export function Admin() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="font-bold text-brand-orange">
-                            {Math.round(student.total_invested || 0)} UR
+                            {Math.round(allActiveInvestments
+                              .filter(inv => inv.user_id === student.id)
+                              .reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0)
+                            )} UR
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
@@ -501,6 +621,7 @@ export function Admin() {
             )}
           </CardContent>
         </Card>
+      </div>
       ) : activeTab === 'announcements' ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <Card>
@@ -729,6 +850,33 @@ export function Admin() {
                 </div>
               )}
             </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-red-600/20 bg-red-950 text-white overflow-hidden">
+            <div className="p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="flex items-start gap-6">
+                <div className="w-16 h-16 bg-red-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-red-600/40 shrink-0">
+                  <AlertTriangle className="w-8 h-8 text-white" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+                    Zona de Perigo
+                  </h3>
+                  <p className="text-red-200/60 text-sm leading-relaxed max-w-md">
+                    Ao zerar o sistema, todos os saldos de alunos voltarão para 0 UR. O histórico de investimentos e transações será permanentemente apagado. <strong>Esta ação não pode ser desfeita.</strong>
+                  </p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setResetModalOpen(true)}
+                className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest transition-all shadow-xl shadow-red-900/50 flex items-center gap-3 active:scale-95"
+              >
+                <RotateCcw className="w-5 h-5" />
+                Zerar Sistema Agora
+              </button>
+            </div>
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -969,11 +1117,21 @@ WITH CHECK (public.is_admin());
                 </div>
                 <div className="bg-white/10 p-4 rounded-2xl">
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Investido (Atual)</p>
-                  <p className="text-xl font-black text-green-400">{Math.round(detailsStudent.total_invested || 0)} UR</p>
+                  <p className="text-xl font-black text-green-400">
+                    {Math.round(studentInvestments
+                      .filter(i => !i.redeemed_at)
+                      .reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0)
+                    )} UR
+                  </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-2xl">
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Patrimônio Total</p>
-                  <p className="text-xl font-black text-white">{Math.round(detailsStudent.balance + (detailsStudent.total_invested || 0))} UR</p>
+                  <p className="text-xl font-black text-white">
+                    {Math.round(detailsStudent.balance + studentInvestments
+                      .filter(i => !i.redeemed_at)
+                      .reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0)
+                    )} UR
+                  </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-2xl">
                   <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Ativos Pendentes</p>
@@ -1064,27 +1222,51 @@ WITH CHECK (public.is_admin());
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {studentLogs.map(log => (
-                          <tr key={log.id} className="bg-white/50">
-                            <td className="px-8 py-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">
-                              {new Date(log.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td className="px-8 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  log.type === 'mint' ? 'bg-blue-500' :
-                                  log.type === 'investment' ? 'bg-orange-500' :
-                                  log.type === 'redemption' ? 'bg-green-500' : 'bg-gray-400'
-                                }`} />
-                                <span className="text-sm font-bold text-gray-800">{log.description}</span>
+                          <tr key={log.id} className="bg-white/50 border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
+                            <td className="px-8 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                  {new Date(log.date).toLocaleDateString('pt-BR')}
+                                </span>
+                                <span className="text-[10px] font-bold text-gray-500">
+                                  {new Date(log.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               </div>
                             </td>
-                            <td className="px-8 py-4 text-right">
-                              <span className={`font-black ${
-                                log.type === 'transfer' ? (log.description.startsWith('Enviou') ? 'text-red-500' : 'text-green-600') :
-                                log.type === 'mint' ? 'text-blue-600' :
-                                log.type === 'redemption' ? 'text-brand-orange font-black' : 'text-gray-900'
+                            <td className="px-8 py-5">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                  log.type === 'mint' ? 'bg-blue-50 text-blue-600' :
+                                  log.type === 'investment' ? 'bg-orange-50 text-orange-600' :
+                                  log.type === 'redemption' ? 'bg-green-50 text-green-600' : 
+                                  log.change === 'positive' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                                }`}>
+                                  {log.type === 'mint' ? <TrendingUp className="w-5 h-5" /> :
+                                   log.type === 'investment' ? <ShoppingCart className="w-5 h-5" /> :
+                                   log.type === 'redemption' ? <BarChart3 className="w-5 h-5" /> :
+                                   log.change === 'positive' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                  <span className="text-sm font-black text-gray-900 block leading-tight">{log.description}</span>
+                                  {log.type === 'redemption' && log.metadata?.profit !== undefined && (
+                                    <span className={`text-[9px] font-black uppercase tracking-widest ${log.metadata.profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                      {log.metadata.profit >= 0 ? 'Lucro' : 'Prejuízo'}: {Math.round(log.metadata.profit)} UR ({log.metadata.profitPercent?.toFixed(1)}%)
+                                    </span>
+                                  )}
+                                  {log.type === 'transfer' && log.metadata?.targetName && (
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                      ID: {log.id.split('-')[0]}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5 text-right">
+                              <span className={`text-sm font-black px-3 py-1.5 rounded-lg inline-block ${
+                                log.change === 'positive' ? 'bg-green-100/50 text-green-600' : 
+                                log.change === 'negative' ? 'bg-red-100/50 text-red-600' : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {log.description.startsWith('Enviou') || log.type === 'investment' ? '-' : '+'}{Math.round(log.amount)} UR
+                                {log.change === 'positive' ? '+' : '-'}{Math.round(log.amount)} UR
                               </span>
                             </td>
                           </tr>
@@ -1099,6 +1281,71 @@ WITH CHECK (public.is_admin());
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Reset System Modal */}
+      {resetModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            <div className="bg-red-600 p-8 text-white relative">
+              <button 
+                onClick={() => {
+                  setResetModalOpen(false);
+                  setResetConfirmText('');
+                }}
+                className="absolute top-8 right-8 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-6">
+                <AlertTriangle className="w-10 h-10 text-white" />
+              </div>
+              
+              <h2 className="text-3xl font-black uppercase tracking-tight leading-tight">
+                Zerar Sistema Financeiro?
+              </h2>
+              <p className="text-red-100 font-bold opacity-80 uppercase tracking-widest text-[10px] mt-2">Ação Irreversível</p>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="p-6 bg-red-50 border-l-4 border-red-600 rounded-2xl text-red-900">
+                <p className="text-sm font-bold leading-relaxed italic">
+                  "Eu compreendo que ao confirmar, todos os alunos começarão do zero (0 UR) e todo o histórico atual será deletado."
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Digite <span className="text-red-600 font-black">ZERAR</span> para confirmar</label>
+                <Input 
+                  className="h-16 text-2xl font-black text-center uppercase tracking-widest border-2 focus:border-red-600 transition-all rounded-2xl"
+                  placeholder="DIGITE AQUI"
+                  value={resetConfirmText}
+                  onChange={e => setResetConfirmText(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 h-14 rounded-2xl border-2 font-bold" 
+                  onClick={() => {
+                    setResetModalOpen(false);
+                    setResetConfirmText('');
+                  }}
+                >
+                  Abortar Missão
+                </Button>
+                <Button 
+                  className="flex-1 h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-200 font-black uppercase tracking-widest text-xs" 
+                  onClick={handleResetSystem}
+                  disabled={resetting || resetConfirmText !== 'ZERAR'}
+                >
+                  {resetting ? 'Limpando...' : 'Confirmar Limpeza'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

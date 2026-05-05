@@ -48,9 +48,6 @@ export function Investments() {
     { id: 'poupanca', name: 'Poupança Digital', category: 'conservative', description: 'O clássico investimento brasileiro.', basePrice: 10, volatility: 0.01, yieldInfo: '0.5% ao mês + TR' },
     { id: 'lca_95', name: 'LCA Agronegócio', category: 'moderate', description: 'Financie o campo com isenção de taxas.', basePrice: 200, volatility: 0.05, yieldInfo: '95% do CDI' },
     { id: 'debenture_prefixada', name: 'Debênture Infra', category: 'moderate', description: 'Títulos de empresas de infraestrutura.', basePrice: 150, volatility: 0.12, yieldInfo: 'IPCA + 6%' },
-    { id: 'stocks_growth', name: 'Ações High Growth', category: 'aggressive', description: 'Empresas de tecnologia com alto potencial.', basePrice: 80, volatility: 0.35, yieldInfo: 'Variável (Mercado)' },
-    { id: 'crypto_strat', name: 'Criptoativo Estratégico', category: 'aggressive', description: 'Ativos digitais de alta volatilidade.', basePrice: 25, volatility: 0.65, yieldInfo: 'Extrema Volatilidade' },
-    { id: 'vc_fund', name: 'Venture Capital Hub', category: 'aggressive', description: 'Investimento em Startups unicórnios.', basePrice: 500, volatility: 0.80, yieldInfo: 'Alto Risco / Alta Recompensa' },
   ];
 
   const currentProduct = products.find(p => p.id === selectedProduct) || products[0];
@@ -305,12 +302,8 @@ CREATE POLICY "Users can update their own investments"
   const getProductChartData = () => {
     if (!selectedProduct) return [];
     
-    let volatility = 0;
-    if (selectedProduct === 'crypto_strat') volatility = 0.35;
-    if (selectedProduct === 'stocks_growth') volatility = 0.20;
-    if (selectedProduct === 'vc_fund') volatility = 0.50;
-    // Lower volatility for others
-    if (volatility === 0) volatility = 0.02; 
+    let volatility = 0.02;
+    // Lower volatility as defaults for conservative/moderate
 
     const data = [];
     const now = Date.now();
@@ -414,7 +407,7 @@ CREATE POLICY "Users can update their own investments"
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Título Selecionado</label>
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
                       <p className="font-bold text-lg">{currentProduct.name}</p>
-                      <p className="text-xs text-brand-orange font-bold uppercase">{currentProduct.category === 'aggressive' ? 'Risco Elevado' : 'Risco Controlado'}</p>
+                      <p className="text-xs text-brand-orange font-bold uppercase">Risco Controlado</p>
                     </div>
                   </div>
 

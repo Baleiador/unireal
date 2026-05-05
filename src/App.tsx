@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -78,9 +78,23 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // When using HashRouter, we need to handle the navigation differently if we're using window.location directly
+        // but react-router's navigate should be used if possible. 
+        // Since we are outside the Router here, we can't use useNavigate easily without a wrapper.
+        // However, we can use window.location.hash
+        window.location.hash = '#/reset-password';
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -105,7 +119,7 @@ export default function App() {
             <Route path="my-qr" element={<MyQRCode />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </Router>
     </AuthProvider>
   );
 }

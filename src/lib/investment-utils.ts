@@ -1,6 +1,7 @@
 
 export type Investment = {
   id: string;
+  user_id: string; // Added user_id for association
   type: string;
   amount: number;
   quantity: number; // Added for share model
