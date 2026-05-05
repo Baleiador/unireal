@@ -11,9 +11,9 @@ export type Investment = {
 };
 
 // Simulation Constants
-// 1 Real Hour = 1 Virtual Month
-// This makes the deterministic yield visible but controlled.
-const GAME_TIME_SCALE = 720; 
+// 1 Real Day = 1 Virtual Month
+// Ratio: 30.41 (avg days in month) / 1 (real day) = 30.41
+const GAME_TIME_SCALE = 30.41; 
 
 export const getOrganicOscillation = (seconds: number, seed: number, volatility: number) => {
   // Slow down waves: Cycles now take between 10 and 30 minutes to complete
