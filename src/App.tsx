@@ -13,6 +13,7 @@ import { Admin } from './pages/Admin';
 import { Investments } from './pages/Investments';
 import { MyQRCode } from './pages/MyQRCode';
 import { Maintenance } from './pages/Maintenance';
+import { AnnouncementModal } from './components/AnnouncementModal';
 import { supabase } from './lib/supabase';
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
@@ -90,6 +91,7 @@ export default function App() {
             element={
               <PrivateRoute>
                 <MaintenanceGuard>
+                  <AnnouncementModal />
                   <Layout />
                 </MaintenanceGuard>
               </PrivateRoute>
