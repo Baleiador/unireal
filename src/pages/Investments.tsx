@@ -29,7 +29,6 @@ export function Investments() {
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'ativos' | 'resgatados'>('ativos');
   const [remainingCooldown, setRemainingCooldown] = useState<number>(0);
-  const [isHighVolume, setIsHighVolume] = useState(false);
   const [, setTick] = useState(0);
 
   const getProductName = (slug: string) => {
@@ -54,17 +53,6 @@ export function Investments() {
     const typeName = getProductName(slug);
     
     try {
-      // Check global volume
-      const { count, error: countError } = await supabase
-        .from('investments')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', typeName)
-        .is('redeemed_at', null);
-
-      if (countError) throw countError;
-      const volume = count || 0;
-      setIsHighVolume(volume >= 10);
-
       // Check user's last redemption
       const { data: lastRedeem, error: lastError } = await supabase
         .from('investments')
@@ -81,7 +69,7 @@ export function Investments() {
         const lastTime = new Date(lastRedeem[0].redeemed_at).getTime();
         const now = new Date().getTime();
         const secondsPassed = (now - lastTime) / 1000;
-        const cooldownNeeded = (volume >= 10) ? 300 : 90;
+        const cooldownNeeded = 86400; // 24 hours lock
         
         if (secondsPassed < cooldownNeeded) {
           setRemainingCooldown(Math.ceil(cooldownNeeded - secondsPassed));
@@ -683,15 +671,15 @@ CREATE POLICY "Users can update their own investments"
                     onClick={handleInvest}
                     disabled={investing || remainingCooldown > 0}
                   >
-                    {investing ? 'Processando...' : remainingCooldown > 0 ? `Aguarde ${remainingCooldown}s` : 'Aplicar Recursos'}
+                    {investing ? 'Processando...' : remainingCooldown > 0 ? `Aguarde ${new Date(remainingCooldown * 1000).toISOString().substr(11, 8)}` : 'Aplicar Recursos'}
                     {!investing && remainingCooldown === 0 && <ArrowRight className="w-5 h-5 ml-2" />}
                   </Button>
                 </div>
                 {remainingCooldown > 0 && (
                   <p className="mt-2 text-xs text-brand-orange font-bold flex items-center gap-2">
                     <Clock className="w-3 h-3" />
-                    Período de Resfriamento Ativo {isHighVolume ? '(Volume Elevado: 300s)' : '(90s)'}. 
-                    Evite investir em ativos resgatados recentemente para garantir a estabilidade do mercado.
+                    Período de Carência Ativo: 24h após o resgate. 
+                    Investimentos neste ativo estão bloqueados para garantir o equilíbrio do mercado.
                   </p>
                 )}
                 {errorMsg && <p className="text-red-500 mt-3 text-sm font-medium">{errorMsg}</p>}
