@@ -508,17 +508,25 @@ CREATE POLICY "Users can update their own investments"
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeInvestments.map(inv => {
+                const isDiscontinued = !products.find(p => p.name === inv.type);
                 const currentTotal = calculateCurrentAmount(inv);
                 const pnl = ((currentTotal - inv.amount) / inv.amount) * 100;
                 const unitPrice = currentTotal / (inv.quantity || 1);
                 
                 return (
                   <div key={inv.id}>
-                    <Card className="group hover:shadow-2xl transition-all border-none bg-white overflow-hidden shadow-sm">
+                    <Card className={`group hover:shadow-2xl transition-all border-none bg-white overflow-hidden shadow-sm ${isDiscontinued ? 'ring-2 ring-red-500/20' : ''}`}>
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-lg font-black text-gray-900">{inv.type}</CardTitle>
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-lg font-black text-gray-900">{inv.type}</CardTitle>
+                              {isDiscontinued && (
+                                <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[8px] font-black uppercase rounded-full flex items-center gap-1">
+                                  <AlertTriangle className="w-2 h-2" /> Descontinuado
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                               {inv.quantity || 1} Títulos • Comprados em {new Date(inv.created_at).toLocaleDateString('pt-BR')}
                             </p>

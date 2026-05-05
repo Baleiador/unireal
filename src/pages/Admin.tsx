@@ -213,6 +213,29 @@ export function Admin() {
     }
   };
 
+  const handleCleanupDiscontinued = async () => {
+    if (!confirm("Isso removerá permanentemente todos os investimentos de 'Alto Risco' descontinuados das contas dos alunos. Continuar?")) return;
+    
+    setResetting(true);
+    try {
+      const discontinuedNames = ['Ações High Growth', 'Criptoativo Estratégico', 'Venture Capital Hub'];
+      
+      const { error } = await supabase
+        .from('investments')
+        .delete()
+        .in('type', discontinuedNames);
+
+      if (error) throw error;
+
+      alert("Investimentos descontinuados removidos com sucesso!");
+      fetchStudents();
+    } catch (err: any) {
+      alert("Erro ao limpar investimentos: " + err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleResetSystem = async () => {
     if (resetConfirmText !== 'ZERAR') {
       alert("Por favor, digite ZERAR para confirmar.");
@@ -875,13 +898,22 @@ export function Admin() {
                 </div>
               </div>
               
-              <button 
-                onClick={() => setResetModalOpen(true)}
-                className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest transition-all shadow-xl shadow-red-900/50 flex items-center gap-3 active:scale-95"
-              >
-                <RotateCcw className="w-5 h-5" />
-                Zerar Sistema Agora
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  onClick={() => setResetModalOpen(true)}
+                  className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest transition-all shadow-xl shadow-red-900/50 flex items-center justify-center gap-3 active:scale-95"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  Zerar Sistema
+                </button>
+                <button 
+                  onClick={handleCleanupDiscontinued}
+                  className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest transition-all shadow-xl shadow-orange-900/50 flex items-center justify-center gap-3 active:scale-95"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Limpar Descontinuados
+                </button>
+              </div>
             </div>
           </Card>
 
