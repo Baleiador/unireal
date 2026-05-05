@@ -67,12 +67,13 @@ export function AnnouncementModal() {
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 20, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-brand-orange/20"
+            className="w-full max-w-lg bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border-2 sm:border-4 border-brand-orange/20 max-h-[90vh] flex flex-col"
           >
-            <div className="bg-gradient-to-br from-brand-orange to-orange-600 p-10 text-white relative">
+            <div className="bg-gradient-to-br from-brand-orange to-orange-600 p-6 sm:p-10 text-white relative shrink-0">
               <button 
                 onClick={handleDismiss}
-                className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full transition-all text-white"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full transition-all text-white z-10"
+                aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -81,40 +82,40 @@ export function AnnouncementModal() {
                 initial={{ rotate: -20, scale: 0 }}
                 animate={{ rotate: 0, scale: 1 }}
                 transition={{ delay: 0.2 }}
-                className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-8 backdrop-blur-sm"
+                className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 backdrop-blur-sm"
               >
-                <Megaphone className="w-10 h-10 text-white" />
+                <Megaphone className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </motion.div>
               
-              <h2 className="text-4xl font-black uppercase tracking-tight leading-none mb-2">
-                Atenção<br />Aluno!
+              <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight leading-tight mb-1">
+                Atenção<br className="hidden sm:block" /> Aluno!
               </h2>
-              <p className="text-orange-100 font-bold opacity-80 uppercase tracking-widest text-[10px]">Comunicado Oficial da Direção</p>
+              <p className="text-orange-100 font-bold opacity-80 uppercase tracking-widest text-[9px] sm:text-[10px]">Comunicado Oficial da Direção</p>
             </div>
             
-            <div className="p-10 space-y-8">
-              <div className="space-y-4">
-                <h3 className="text-2xl font-black text-gray-900 flex items-center gap-3">
-                  <Bell className="w-6 h-6 text-brand-orange" />
+            <div className="p-6 sm:p-10 space-y-6 sm:space-y-8 overflow-y-auto">
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2 sm:gap-3">
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-brand-orange shrink-0" />
                   {announcement.title}
                 </h3>
-                <div className="bg-gray-50 p-6 rounded-2xl border-l-4 border-brand-orange">
-                  <p className="text-gray-700 leading-relaxed text-xl font-medium italic whitespace-pre-wrap">
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-2xl border-l-4 border-brand-orange">
+                  <p className="text-gray-700 leading-relaxed text-lg sm:text-xl font-medium italic whitespace-pre-wrap">
                     "{announcement.content}"
                   </p>
                 </div>
               </div>
               
-              <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Publicação</span>
-                  <span className="text-sm font-bold text-gray-600">
+              <div className="pt-4 sm:pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-col text-center sm:text-left">
+                  <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">Publicação</span>
+                  <span className="text-xs sm:text-sm font-bold text-gray-600">
                     {new Date(announcement.created_at).toLocaleDateString('pt-BR')} às {new Date(announcement.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <Button 
                   onClick={handleDismiss}
-                  className="w-full sm:w-auto bg-gray-900 text-white hover:bg-black px-12 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-2xl shadow-black/20 transition-all hover:scale-105 active:scale-95"
+                  className="w-full sm:w-auto bg-gray-900 text-white hover:bg-black px-8 sm:px-12 py-3 sm:py-5 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-sm tracking-widest shadow-xl sm:shadow-2xl shadow-black/20"
                 >
                   Entendido
                 </Button>
