@@ -601,65 +601,83 @@ Deseja continuar?`)) return;
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                      <th className="px-6 py-4 font-medium">Aluno</th>
-                      <th className="px-6 py-4 font-medium">Turma</th>
-                      <th className="px-6 py-4 font-medium">Saldo Atual</th>
-                      <th className="px-6 py-4 font-medium">Investido</th>
-                      <th className="px-6 py-4 font-medium text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
-                              {student.full_name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-black">{student.full_name}</span>
-                              {student.raw_password && (
-                                <span className="text-[10px] font-mono text-gray-400">Senha: {student.raw_password}</span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-gray-600">{student.grade || '-'}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-bold text-black">{student.balance} UR</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-bold text-brand-orange">
-                            {Math.round(allActiveInvestments
-                              .filter(inv => inv.user_id === student.id)
-                              .reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0)
-                            )} UR
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => fetchStudentDetails(student)}
-                            className="p-2 text-gray-400 hover:text-brand-orange hover:bg-orange-50 rounded-lg transition-all"
-                            title="Ver Perfil"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
-                          <Button 
-                            size="sm" 
-                            onClick={() => openModal(student)}
-                            className="shadow-sm"
-                          >
-                            <PlusCircle className="w-4 h-4 mr-2" />
-                            Recompensar
-                          </Button>
-                        </td>
+                    <thead>
+                      <tr className="bg-white border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-4 font-medium">Aluno</th>
+                        <th className="px-6 py-4 font-medium">Turma</th>
+                        <th className="px-6 py-4 font-medium">Saldo em Conta</th>
+                        <th className="px-6 py-4 font-medium">Total Investido</th>
+                        <th className="px-6 py-4 font-medium">Patrimônio Total</th>
+                        <th className="px-6 py-4 font-medium text-right">Ação</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredStudents.map((student) => {
+                        const studentInvs = allActiveInvestments.filter(inv => inv.user_id === student.id);
+                        const studentTotalInvested = studentInvs.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0);
+                        const totalWealth = (student.balance || 0) + studentTotalInvested;
+
+                        return (
+                          <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
+                                  {student.full_name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-black">{student.full_name}</span>
+                                  {student.raw_password && (
+                                    <span className="text-[10px] font-mono text-gray-400">Senha: {student.raw_password}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-gray-600">{student.grade || '-'}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-bold text-black">{(student.balance || 0).toLocaleString()} UR</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-brand-orange">
+                                  {Math.round(studentTotalInvested).toLocaleString()} UR
+                                </span>
+                                {studentInvs.length > 0 && (
+                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                    {studentInvs.length} {studentInvs.length === 1 ? 'Ativo' : 'Ativos'}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-orange/10 rounded-full">
+                                <span className="font-black text-brand-orange text-sm">
+                                  {Math.round(totalWealth).toLocaleString()} UR
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => fetchStudentDetails(student)}
+                                className="p-2 text-gray-400 hover:text-brand-orange hover:bg-orange-50 rounded-lg transition-all"
+                                title="Ver Perfil"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
+                              <Button 
+                                size="sm" 
+                                onClick={() => openModal(student)}
+                                className="shadow-sm"
+                              >
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                Recompensar
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
                 </table>
               </div>
             )}
