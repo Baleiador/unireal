@@ -214,20 +214,35 @@ export function Admin() {
   };
 
   const handleCleanupDiscontinued = async () => {
-    if (!confirm("Isso removerá permanentemente todos os investimentos de 'Alto Risco' descontinuados das contas dos alunos. Continuar?")) return;
+    const approvedNames = [
+      'Tesouro Selic 2029',
+      'CDB Prime 110% CDI',
+      'Poupança Digital',
+      'LCI Imobiliário',
+      'LCA Agronegócio',
+      'Debênture Infra',
+      'ETF Global IVVB11',
+      'Fundo Imobiliário'
+    ];
+
+    if (!confirm(`Isso removerá permanentemente TODOS os investimentos que não sejam os 8 títulos atuais aprovados. 
+    
+Apenas estes serão mantidos:
+${approvedNames.map(n => `- ${n}`).join('\n')}
+
+Deseja continuar?`)) return;
     
     setResetting(true);
     try {
-      const discontinuedNames = ['Ações High Growth', 'Criptoativo Estratégico', 'Venture Capital Hub'];
-      
+      // Delete everything that is NOT in the approved list
       const { error } = await supabase
         .from('investments')
         .delete()
-        .in('type', discontinuedNames);
+        .filter('type', 'not.in', `(${approvedNames.map(n => `"${n}"`).join(',')})`);
 
       if (error) throw error;
 
-      alert("Investimentos descontinuados removidos com sucesso!");
+      alert("Investimentos desatualizados ou descontinuados removidos com sucesso!");
       fetchStudents();
     } catch (err: any) {
       alert("Erro ao limpar investimentos: " + err.message);
