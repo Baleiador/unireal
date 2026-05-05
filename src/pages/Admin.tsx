@@ -4,14 +4,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users, Bell, Trash2, Megaphone } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase } from 'lucide-react';
 import { Navigate } from 'react-router';
+import { calculateCurrentAmount, Investment } from '../lib/investment-utils';
 
 type Profile = {
   id: string;
   full_name: string;
   balance: number;
   grade: string | null;
+  total_invested?: number;
+};
+
+type LogEntry = {
+  id: string;
+  type: 'transfer' | 'investment' | 'redemption' | 'mint';
+  amount: number;
+  description: string;
+  date: string;
+  metadata?: any;
 };
 
 export function Admin() {
@@ -26,6 +37,13 @@ export function Admin() {
   const [minting, setMinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Student Details Modal
+  const [detailsStudent, setDetailsStudent] = useState<Profile | null>(null);
+  const [studentInvestments, setStudentInvestments] = useState<Investment[]>([]);
+  const [studentLogs, setStudentLogs] = useState<LogEntry[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<'portfolio' | 'logs'>('portfolio');
   
   // Settings state
   const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements'>('users');
@@ -178,18 +196,119 @@ export function Admin() {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // 1. Fetch Students
+      const { data: studentData, error: studentError } = await supabase
         .from('profiles')
         .select('id, full_name, balance, grade')
-        .eq('is_admin', false) // Only show students
+        .eq('is_admin', false)
         .order('full_name');
 
-      if (error) throw error;
-      setStudents(data || []);
+      if (studentError) throw studentError;
+
+      // 2. Fetch Active Investments to calculate totals
+      const { data: invData, error: invError } = await supabase
+        .from('investments')
+        .select('*')
+        .is('redeemed_at', null);
+
+      if (invError) throw invError;
+
+      const studentsWithTotals = (studentData || []).map(student => {
+        const studentInvs = (invData || []).filter(inv => inv.user_id === student.id);
+        const totalInvested = studentInvs.reduce((acc, inv) => acc + calculateCurrentAmount(inv), 0);
+        return {
+          ...student,
+          total_invested: totalInvested
+        };
+      });
+
+      setStudents(studentsWithTotals);
     } catch (err) {
       console.error('Error fetching students:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudentDetails = async (student: Profile) => {
+    setDetailsStudent(student);
+    setLoadingDetails(true);
+    setDetailsTab('portfolio');
+    
+    try {
+      // 1. Fetch all investments (active and redeemed)
+      const { data: invs, error: invError } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('user_id', student.id)
+        .order('created_at', { ascending: false });
+
+      if (invError) throw invError;
+      setStudentInvestments(invs || []);
+
+      // 2. Fetch transaction history
+      const { data: txs, error: txError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          sender:profiles!transactions_sender_id_fkey(full_name),
+          receiver:profiles!transactions_receiver_id_fkey(full_name)
+        `)
+        .or(`sender_id.eq.${student.id},receiver_id.eq.${student.id}`)
+        .order('created_at', { ascending: false });
+
+      if (txError) throw txError;
+
+      // Map transactions and investments into logs
+      const logs: LogEntry[] = [];
+
+      // Add transfers
+      txs?.forEach(tx => {
+        const isSender = tx.sender_id === student.id;
+        const isMint = tx.sender && tx.sender.full_name === 'Sistema' || !tx.sender_id; // Check if it's from system
+        
+        logs.push({
+          id: tx.id,
+          type: isMint ? 'mint' : 'transfer',
+          amount: tx.amount,
+          date: tx.created_at,
+          description: isMint 
+            ? `Recebeu recompensa do Professor` 
+            : isSender 
+              ? `Enviou para ${tx.receiver?.full_name || 'Usuário'}`
+              : `Recebeu de ${tx.sender?.full_name || 'Usuário'}`
+        });
+      });
+
+      // Add investment events
+      invs?.forEach(allInv => {
+        logs.push({
+          id: `inv-${allInv.id}`,
+          type: 'investment',
+          amount: allInv.amount,
+          date: allInv.created_at,
+          description: `Comprou título: ${allInv.type}`
+        });
+
+        if (allInv.redeemed_at && allInv.redeemed_amount) {
+          logs.push({
+            id: `red-${allInv.id}`,
+            type: 'redemption',
+            amount: allInv.redeemed_amount,
+            date: allInv.redeemed_at,
+            description: `Vendeu título: ${allInv.type}`
+          });
+        }
+      });
+
+      // Sort logs by date
+      logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setStudentLogs(logs);
+
+    } catch (err) {
+      console.error("Error fetching student details:", err);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -331,6 +450,7 @@ export function Admin() {
                       <th className="px-6 py-4 font-medium">Aluno</th>
                       <th className="px-6 py-4 font-medium">Turma</th>
                       <th className="px-6 py-4 font-medium">Saldo Atual</th>
+                      <th className="px-6 py-4 font-medium">Investido</th>
                       <th className="px-6 py-4 font-medium text-right">Ação</th>
                     </tr>
                   </thead>
@@ -351,7 +471,19 @@ export function Admin() {
                         <td className="px-6 py-4">
                           <span className="font-bold text-black">{student.balance} UR</span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-brand-orange">
+                            {Math.round(student.total_invested || 0)} UR
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => fetchStudentDetails(student)}
+                            className="p-2 text-gray-400 hover:text-brand-orange hover:bg-orange-50 rounded-lg transition-all"
+                            title="Ver Perfil"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                           <Button 
                             size="sm" 
                             onClick={() => openModal(student)}
@@ -801,6 +933,173 @@ WITH CHECK (public.is_admin());
                 </form>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Student Details Modal */}
+      {detailsStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 my-8">
+            <div className="bg-black p-8 text-white relative">
+              <button 
+                onClick={() => setDetailsStudent(null)}
+                className="absolute top-8 right-8 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="flex items-center gap-6">
+                <div className="w-20 h-20 rounded-3xl bg-brand-orange flex items-center justify-center text-3xl font-black shadow-2xl shadow-brand-orange/20">
+                  {detailsStudent.full_name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight">{detailsStudent.full_name}</h2>
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">{detailsStudent.grade || 'S/ Turma'}</span>
+                    <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">{detailsStudent.id.slice(0, 8)}...</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Saldo em Carteira</p>
+                  <p className="text-xl font-black text-brand-orange">{detailsStudent.balance} UR</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Investido (Atual)</p>
+                  <p className="text-xl font-black text-green-400">{Math.round(detailsStudent.total_invested || 0)} UR</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Patrimônio Total</p>
+                  <p className="text-xl font-black text-white">{Math.round(detailsStudent.balance + (detailsStudent.total_invested || 0))} UR</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Ativos Pendentes</p>
+                  <p className="text-xl font-black text-blue-400">{studentInvestments.filter(i => !i.redeemed_at).length}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={() => setDetailsTab('portfolio')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${detailsTab === 'portfolio' ? 'bg-brand-orange text-white' : 'text-white/60 hover:text-white'}`}
+                >
+                  <Briefcase className="w-4 h-4" />
+                  Portfólio
+                </button>
+                <button 
+                  onClick={() => setDetailsTab('logs')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${detailsTab === 'logs' ? 'bg-brand-orange text-white' : 'text-white/60 hover:text-white'}`}
+                >
+                  <History className="w-4 h-4" />
+                  Log de Atividade
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8">
+              {loadingDetails ? (
+                <div className="py-20 text-center space-y-4">
+                  <div className="w-12 h-12 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Sincronizando dados...</p>
+                </div>
+              ) : detailsTab === 'portfolio' ? (
+                <div className="space-y-6">
+                  {studentInvestments.length === 0 ? (
+                    <div className="py-12 bg-gray-50 rounded-3xl text-center">
+                      <p className="text-gray-400 font-bold">Nenhum investimento encontrado.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {studentInvestments.map(inv => {
+                        const currentVal = calculateCurrentAmount(inv);
+                        const pnl = inv.redeemed_at 
+                          ? ((inv.redeemed_amount! - inv.amount) / inv.amount) * 100
+                          : ((currentVal - inv.amount) / inv.amount) * 100;
+
+                        return (
+                          <div key={inv.id} className={`p-6 rounded-3xl border ${inv.redeemed_at ? 'bg-gray-50 border-gray-100 opacity-75' : 'bg-white border-gray-100 shadow-sm'}`}>
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">{inv.type}</h4>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                  {inv.redeemed_at ? `Resgatado em ${new Date(inv.redeemed_at).toLocaleDateString('pt-BR')}` : `Início: ${new Date(inv.created_at).toLocaleDateString('pt-BR')}`}
+                                </p>
+                              </div>
+                              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 ${pnl >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                {pnl >= 0 ? <TrendingUpDown className="w-3 h-3" /> : <History className="w-3 h-3 opacity-30" />}
+                                {pnl.toFixed(1)}%
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Investido</p>
+                                <p className="font-bold text-gray-900">{inv.amount} UR</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor {inv.redeemed_at ? 'Final' : 'Atual'}</p>
+                                <p className={`text-xl font-black ${pnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                  {Math.round(inv.redeemed_at ? inv.redeemed_amount! : currentVal)} <span className="text-[10px]">UR</span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-[2rem] overflow-hidden border border-gray-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-white border-b border-gray-200 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          <th className="px-8 py-4">Data</th>
+                          <th className="px-8 py-4">Evento</th>
+                          <th className="px-8 py-4 text-right">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {studentLogs.map(log => (
+                          <tr key={log.id} className="bg-white/50">
+                            <td className="px-8 py-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                              {new Date(log.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="px-8 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  log.type === 'mint' ? 'bg-blue-500' :
+                                  log.type === 'investment' ? 'bg-orange-500' :
+                                  log.type === 'redemption' ? 'bg-green-500' : 'bg-gray-400'
+                                }`} />
+                                <span className="text-sm font-bold text-gray-800">{log.description}</span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-4 text-right">
+                              <span className={`font-black ${
+                                log.type === 'transfer' ? (log.description.startsWith('Enviou') ? 'text-red-500' : 'text-green-600') :
+                                log.type === 'mint' ? 'text-blue-600' :
+                                log.type === 'redemption' ? 'text-brand-orange font-black' : 'text-gray-900'
+                              }`}>
+                                {log.description.startsWith('Enviou') || log.type === 'investment' ? '-' : '+'}{Math.round(log.amount)} UR
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                        {studentLogs.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="px-8 py-12 text-center text-gray-400 font-bold">Nenhuma atividade registrada.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
