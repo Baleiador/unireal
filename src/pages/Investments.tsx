@@ -217,15 +217,15 @@ export function Investments() {
       } else if (selectedProduct === 'crypto_strat') {
         type = 'Criptoativo Estratégico';
         rateType = 'FIXED';
-        rateValue = 45.0; // 45% a.a
+        rateValue = 12.0; // Hard Nerf: Was 45%
       } else if (selectedProduct === 'stocks_growth') {
         type = 'Ações High Growth';
         rateType = 'FIXED';
-        rateValue = 30.0; // 30% a.a
+        rateValue = 8.0; // Hard Nerf: Was 30%
       } else if (selectedProduct === 'vc_fund') {
         type = 'Venture Capital Hub';
         rateType = 'FIXED';
-        rateValue = 60.0; // 60% a.a
+        rateValue = 15.0; // Hard Nerf: Was 60%
       }
 
       // Decrement balance

@@ -10,11 +10,18 @@ export type Investment = {
   redeemed_amount: number | null;
 };
 
+// Simulation Constants
+// 1 Real Hour = 1 Virtual Month
+// This makes the deterministic yield visible but controlled.
+const GAME_TIME_SCALE = 720; 
+
 export const getOrganicOscillation = (seconds: number, seed: number, volatility: number) => {
-  const wave1 = Math.sin((seconds / 47.3) + seed);
-  const wave2 = Math.sin((seconds / 13.7) + seed * 1.3) * 0.4;
-  const wave3 = Math.cos((seconds / 5.9) + seed * 0.7) * 0.2;
-  const wave4 = Math.sin((seconds / 2.3) + seed * 2.1) * 0.08;
+  // Slow down waves: Cycles now take between 10 and 30 minutes to complete
+  // To prevent the "liquidity of a month in seconds" issue
+  const wave1 = Math.sin((seconds / 1800) + seed);         // 30 min cycle
+  const wave2 = Math.sin((seconds / 900) + seed * 1.3) * 0.4; // 15 min cycle
+  const wave3 = Math.cos((seconds / 420) + seed * 0.7) * 0.2;  // 7 min jitter
+  const wave4 = Math.sin((seconds / 120) + seed * 2.1) * 0.08; // 2 min micro jitter
   
   // Base oscillation
   let combined = (wave1 + wave2 + wave3 + wave4) / 1.4;
@@ -22,12 +29,12 @@ export const getOrganicOscillation = (seconds: number, seed: number, volatility:
   // Add downward bias (luck is against the investor)
   // If volatility is high, we subtract a constant to skew the distribution toward losses
   if (volatility >= 0.20) {
-    combined -= 0.25; // 25% downward pressure on high-risk
+    combined -= 0.40; // High downward pressure
     
-    // Asymmetric Risk: Gravity is stronger in high risk.
-    // If the wave is already negative, we amplify the drop.
+    // Asymmetric Risk: Gravity is much stronger in high risk.
+    // If the wave is already negative, we amplify the drop significantly.
     if (combined < 0) {
-      combined *= 1.3; 
+      combined *= 2.0; 
     }
   }
   
@@ -35,9 +42,9 @@ export const getOrganicOscillation = (seconds: number, seed: number, volatility:
 };
 
 export const getVolatilityByType = (type: string) => {
-  if (type.includes('Criptoativo')) return 0.35;
-  if (type.includes('Ações High')) return 0.20;
-  if (type.includes('Venture Capital')) return 0.50;
+  if (type.includes('Criptoativo')) return 0.45;
+  if (type.includes('Ações High')) return 0.30;
+  if (type.includes('Venture Capital')) return 0.65;
   return 0;
 };
 
@@ -50,8 +57,9 @@ export const calculateCurrentAmount = (investment: Investment, currentSelic: num
   const now = new Date();
   const millisecondsPassed = now.getTime() - startDate.getTime();
   const secondsPassed = millisecondsPassed / 1000;
-  const daysPassed = millisecondsPassed / (1000 * 60 * 60 * 24);
-  const yearsPassed = daysPassed / 365;
+  
+  // Apply Time Scale for yield calculation
+  const virtualYearsPassed = (secondsPassed * GAME_TIME_SCALE) / (365 * 24 * 60 * 60);
   
   let annualRate = 0;
   const volatility = getVolatilityByType(investment.type);
@@ -63,18 +71,19 @@ export const calculateCurrentAmount = (investment: Investment, currentSelic: num
     annualRate = investment.rate_value;
   }
   
-  let currentAmount = investment.amount * Math.pow(1 + annualRate / 100, yearsPassed);
+  // Compound growth based on accelerated virtual time
+  let currentAmount = investment.amount * Math.pow(1 + annualRate / 100, virtualYearsPassed);
 
   if (volatility > 0) {
     const seed = investment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    // Oscillation still uses real seconds but waves are now much longer
     const wave = getOrganicOscillation(secondsPassed, seed, volatility);
     currentAmount = currentAmount * (1 + wave);
 
-    // High-Risk Decay: The longer you hold extremely volatile assets, 
-    // the more they are eaten by "market friction" (decay).
-    if (volatility >= 0.30) {
-      const annualFriction = 0.12; // 12% annual decay for pure risk
-      currentAmount *= Math.pow(1 - annualFriction, yearsPassed);
+    // High-Risk Decay: Market friction for pure risk.
+    if (volatility >= 0.25) {
+      const annualFriction = 0.45; 
+      currentAmount *= Math.pow(1 - annualFriction, virtualYearsPassed);
     }
   }
 
