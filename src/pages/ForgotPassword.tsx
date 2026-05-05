@@ -23,8 +23,10 @@ export function ForgotPassword() {
       return;
     }
 
+    // Use explicitly the root URL to avoid sub-paths causing 404 on static host
+    const rootUrl = window.location.origin + window.location.pathname;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: rootUrl,
     });
 
     if (error) {

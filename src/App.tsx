@@ -79,15 +79,22 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   React.useEffect(() => {
+    // 1. Listen for the PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // When using HashRouter, we need to handle the navigation differently if we're using window.location directly
-        // but react-router's navigate should be used if possible. 
-        // Since we are outside the Router here, we can't use useNavigate easily without a wrapper.
-        // However, we can use window.location.hash
         window.location.hash = '#/reset-password';
       }
     });
+
+    // 2. Check if we landed with recovery parameters but event didn't fire yet
+    if (window.location.href.includes('type=recovery') || window.location.hash.includes('access_token=')) {
+      if (!window.location.hash.includes('/reset-password')) {
+        // Only redirect if we are not already going there
+        setTimeout(() => {
+          window.location.hash = '#/reset-password';
+        }, 500);
+      }
+    }
 
     return () => subscription.unsubscribe();
   }, []);
