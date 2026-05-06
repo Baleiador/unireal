@@ -52,11 +52,24 @@ export function Admin() {
   const [studentInvestments, setStudentInvestments] = useState<Investment[]>([]);
   const [allActiveInvestments, setAllActiveInvestments] = useState<Investment[]>([]);
   const [studentLogs, setStudentLogs] = useState<LogEntry[]>([]);
+  const [globalLogs, setGlobalLogs] = useState<LogEntry[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingGlobalLogs, setLoadingGlobalLogs] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'portfolio' | 'logs'>('portfolio');
   
+  // Log Filters
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [logDateStart, setLogDateStart] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(0); // Start of current year
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  });
+  const [logDateEnd, setLogDateEnd] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [logTypeFilter, setLogTypeFilter] = useState<'all' | 'mint' | 'transfer' | 'investment' | 'redemption'>('all');
+  
   // Settings state
-  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements' | 'logs'>('users');
   const [exchangeRate, setExchangeRate] = useState<string>('0.01');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('O sistema está em manutenção para melhorias. Voltamos em breve!');
@@ -84,6 +97,9 @@ export function Admin() {
     fetchSettings();
     if (activeTab === 'announcements') {
       fetchAnnouncements();
+    }
+    if (activeTab === 'logs') {
+      fetchGlobalLogs();
     }
   }, [profile?.id, activeTab]);
 
@@ -248,6 +264,113 @@ Deseja continuar?`)) return;
       alert("Erro ao limpar investimentos: " + err.message);
     } finally {
       setResetting(false);
+    }
+  };
+
+  const fetchGlobalLogs = async () => {
+    setLoadingGlobalLogs(true);
+    try {
+      const start = new Date(logDateStart);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(logDateEnd);
+      end.setHours(23, 59, 59, 999);
+
+      // Start fetching transactions
+      let txQuery = supabase
+        .from('transactions')
+        .select(`
+          *,
+          sender:profiles!transactions_sender_id_fkey(full_name),
+          receiver:profiles!transactions_receiver_id_fkey(full_name)
+        `)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      // Start fetching investments
+      let invQuery = supabase
+        .from('investments')
+        .select(`
+          *,
+          user:profiles!investments_user_id_fkey(full_name)
+        `)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      const [{ data: txs, error: txError }, { data: invs, error: invError }] = await Promise.all([
+        txQuery,
+        invQuery
+      ]);
+
+      if (txError) throw txError;
+      if (invError) throw invError;
+
+      const logs: LogEntry[] = [];
+
+      txs?.forEach(tx => {
+        const isMint = (tx.sender && tx.sender.full_name === 'Sistema') || !tx.sender_id;
+        const type = isMint ? 'mint' : 'transfer';
+        
+        if (logTypeFilter === 'all' || logTypeFilter === type) {
+          logs.push({
+            id: tx.id,
+            type: type,
+            amount: tx.amount,
+            date: tx.created_at,
+            change: isMint ? 'positive' : 'neutral',
+            description: isMint 
+              ? `Sistema premiou ${tx.receiver?.full_name}`
+              : `${tx.sender?.full_name} → ${tx.receiver?.full_name}`,
+            metadata: { targetName: tx.receiver?.full_name }
+          });
+        }
+      });
+
+      invs?.forEach(inv => {
+        // Purchase entry
+        if (logTypeFilter === 'all' || logTypeFilter === 'investment') {
+          logs.push({
+            id: `buy-${inv.id}`,
+            type: 'investment',
+            amount: inv.amount,
+            date: inv.created_at,
+            change: 'negative',
+            description: `${inv.user?.full_name} investiu em ${inv.type}`,
+            metadata: { productType: inv.type }
+          });
+        }
+
+        // Redemption entry
+        if (inv.redeemed_at && inv.redeemed_amount) {
+          // Check if redemption is within range
+          const redDate = new Date(inv.redeemed_at);
+          if (redDate >= start && redDate <= end) {
+            if (logTypeFilter === 'all' || logTypeFilter === 'redemption') {
+              logs.push({
+                id: `sell-${inv.id}`,
+                type: 'redemption',
+                amount: inv.redeemed_amount,
+                date: inv.redeemed_at,
+                change: 'positive',
+                description: `${inv.user?.full_name} resgatou ${inv.type}`,
+                metadata: { 
+                  productType: inv.type,
+                  profit: inv.redeemed_amount - inv.amount,
+                  profitPercent: ((inv.redeemed_amount - inv.amount) / inv.amount) * 100
+                }
+              });
+            }
+          }
+        }
+      });
+
+      logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setGlobalLogs(logs);
+    } catch (err) {
+      console.error("Error fetching global logs:", err);
+      alert("Erro ao buscar logs: " + (err as any).message);
+    } finally {
+      setLoadingGlobalLogs(false);
     }
   };
 
@@ -514,11 +637,20 @@ Deseja continuar?`)) return;
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : activeTab === 'announcements' ? <Megaphone className="w-8 h-8 text-brand-orange" /> : <Settings className="w-8 h-8 text-brand-orange" />}
-            {activeTab === 'users' ? 'Gerar Unireais' : activeTab === 'announcements' ? 'Sistema de Avisos' : 'Configurações'}
+            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : 
+             activeTab === 'announcements' ? <Megaphone className="w-8 h-8 text-brand-orange" /> : 
+             activeTab === 'logs' ? <History className="w-8 h-8 text-brand-orange" /> :
+             <Settings className="w-8 h-8 text-brand-orange" />}
+            {activeTab === 'users' ? 'Gerar Unireais' : 
+             activeTab === 'announcements' ? 'Sistema de Avisos' : 
+             activeTab === 'logs' ? 'Log do Sistema' :
+             'Configurações'}
           </h1>
           <p className="text-gray-500">
-            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : activeTab === 'announcements' ? 'Comunique informções importantes para turmas específicas.' : 'Gerencie os parâmetros globais da economia.'}
+            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : 
+             activeTab === 'announcements' ? 'Comunique informções importantes para turmas específicas.' : 
+             activeTab === 'logs' ? 'Rastreamento completo de todas as transações e investimentos.' :
+             'Gerencie os parâmetros globais da economia.'}
           </p>
         </div>
         <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
@@ -535,6 +667,13 @@ Deseja continuar?`)) return;
           >
             <Bell className="w-4 h-4" />
             Avisos
+          </button>
+          <button 
+            onClick={() => setActiveTab('logs')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'logs' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <List className="w-4 h-4" />
+            Atividade
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -684,6 +823,163 @@ Deseja continuar?`)) return;
           </CardContent>
         </Card>
       </div>
+      ) : activeTab === 'logs' ? (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card>
+            <CardHeader className="p-6 border-b border-gray-100">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <History className="w-6 h-6 text-brand-orange" />
+                  Auditoria Completa do Sistema
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input 
+                      type="text"
+                      placeholder="Buscar por nome do aluno..."
+                      value={logSearchQuery}
+                      onChange={(e) => setLogSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none w-64"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="date"
+                      value={logDateStart}
+                      onChange={(e) => setLogDateStart(e.target.value)}
+                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
+                    />
+                    <span className="text-gray-400 font-black">→</span>
+                    <input 
+                      type="date"
+                      value={logDateEnd}
+                      onChange={(e) => setLogDateEnd(e.target.value)}
+                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
+                    />
+                  </div>
+                  <select 
+                    value={logTypeFilter}
+                    onChange={(e) => setLogTypeFilter(e.target.value as any)}
+                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
+                  >
+                    <option value="all">Filtro: Todos</option>
+                    <option value="mint">Tipo: Recompensa</option>
+                    <option value="transfer">Tipo: Transferência</option>
+                    <option value="investment">Tipo: Investimento</option>
+                    <option value="redemption">Tipo: Resgate</option>
+                  </select>
+                  <Button size="sm" onClick={fetchGlobalLogs} disabled={loadingGlobalLogs}>
+                    <PlusCircle className={`w-4 h-4 mr-2 ${loadingGlobalLogs ? 'animate-spin' : ''}`} />
+                    Consultar
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {/* Summary Stats */}
+              {!loadingGlobalLogs && globalLogs.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 border-b border-gray-100">
+                  <div className="p-4 border-r border-gray-100 text-center">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Movimentado</p>
+                    <p className="text-xl font-black text-black">
+                      {globalLogs.reduce((acc, log) => acc + log.amount, 0).toLocaleString()} UR
+                    </p>
+                  </div>
+                  <div className="p-4 border-r border-gray-100 text-center">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Operações</p>
+                    <p className="text-xl font-black text-brand-orange">{globalLogs.length}</p>
+                  </div>
+                  <div className="p-4 border-r border-gray-100 text-center">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Maior Valor</p>
+                    <p className="text-xl font-black text-purple-600">
+                      {Math.max(...globalLogs.map(l => l.amount), 0).toLocaleString()} UR
+                    </p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Média p/ Operação</p>
+                    <p className="text-xl font-black text-blue-600">
+                      {Math.round(globalLogs.reduce((acc, log) => acc + log.amount, 0) / (globalLogs.length || 1)).toLocaleString()} UR
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {loadingGlobalLogs ? (
+                <div className="p-20 text-center space-y-4">
+                  <div className="w-12 h-12 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Auditoria em andamento...</p>
+                </div>
+              ) : globalLogs.length === 0 ? (
+                <div className="p-20 text-center">
+                  <History className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                  <p className="text-gray-400 font-bold">Nenhum registro encontrado para este período.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        <th className="px-8 py-4">Data/Hora</th>
+                        <th className="px-8 py-4">Tipo</th>
+                        <th className="px-8 py-4">Descrição</th>
+                        <th className="px-8 py-4 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {globalLogs
+                        .filter(log => log.description.toLowerCase().includes(logSearchQuery.toLowerCase()))
+                        .map((log) => (
+                        <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-8 py-5">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-gray-900">
+                                {new Date(log.date).toLocaleDateString('pt-BR')}
+                              </span>
+                              <span className="text-[10px] font-medium text-gray-400">
+                                {new Date(log.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <span className="text-[8px] font-mono text-gray-300 mt-1 uppercase">ID: {log.id.split('-')[0]}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                              log.type === 'mint' ? 'bg-purple-100 text-purple-600' :
+                              log.type === 'transfer' ? 'bg-blue-100 text-blue-600' :
+                              log.type === 'investment' ? 'bg-amber-100 text-amber-600' :
+                              'bg-green-100 text-green-600'
+                            }`}>
+                              {log.type === 'mint' ? 'Recompensa' :
+                               log.type === 'transfer' ? 'Transferência' :
+                               log.type === 'investment' ? 'Investimento' : 'Resgate'}
+                            </span>
+                          </td>
+                          <td className="px-8 py-5">
+                            <p className="text-sm text-gray-700 font-medium">{log.description}</p>
+                            {log.metadata?.profitPercent !== undefined && (
+                              <span className={`text-[10px] font-black uppercase ${log.metadata.profitPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                Lucro: {log.metadata.profitPercent.toFixed(2)}%
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <span className={`font-black tracking-tight text-base ${
+                              log.change === 'positive' ? 'text-green-600' : 
+                              log.change === 'negative' ? 'text-red-500' : 'text-gray-900'
+                            }`}>
+                              {log.change === 'positive' ? '+' : log.change === 'negative' ? '-' : ''}
+                              {log.amount.toLocaleString()} <span className="text-[10px]">UR</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       ) : activeTab === 'announcements' ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <Card>
