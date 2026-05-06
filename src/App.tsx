@@ -11,6 +11,7 @@ import { Ranking } from './pages/Ranking';
 import { Transfer } from './pages/Transfer';
 import { Admin } from './pages/Admin';
 import { Investments } from './pages/Investments';
+import Profile from './pages/Profile';
 import { MyQRCode } from './pages/MyQRCode';
 import { Maintenance } from './pages/Maintenance';
 import { AnnouncementModal } from './components/AnnouncementModal';
@@ -124,6 +125,7 @@ export default function App() {
             <Route path="investments" element={<Investments />} />
             <Route path="admin" element={<Admin />} />
             <Route path="my-qr" element={<MyQRCode />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
         </Routes>
       </Router>

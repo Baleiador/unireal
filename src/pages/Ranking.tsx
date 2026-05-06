@@ -9,6 +9,7 @@ type Profile = {
   full_name: string;
   balance: number;
   grade: string | null;
+  avatar_url: string | null;
 };
 
 export function Ranking() {
@@ -16,6 +17,10 @@ export function Ranking() {
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<string>('Todos');
   const { formatValue: formatBRL } = useExchangeRate();
+
+  const getAvatarUrl = (p: Profile) => {
+    return p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`;
+  };
 
   const GRADES = [
     'Todos',
@@ -37,7 +42,7 @@ export function Ranking() {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, balance, grade')
+        .select('id, full_name, balance, grade, avatar_url')
         .eq('is_admin', false)
         .order('balance', { ascending: false })
         .limit(50);
@@ -105,9 +110,10 @@ export function Ranking() {
                 <div className="relative mb-4 group cursor-pointer">
                   <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-slate-200 overflow-hidden shadow-xl shadow-slate-200/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[1].id}`} 
+                      src={getAvatarUrl(podium[1])} 
                       alt="avatar"
                       className="w-full h-full object-cover p-1 bg-slate-50"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="absolute -bottom-3 -right-3 w-10 h-10 md:w-12 md:h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500 font-black border-4 border-white shadow-lg">2</div>
@@ -130,9 +136,10 @@ export function Ranking() {
                 <div className="relative mb-4 group cursor-pointer">
                   <div className="w-28 h-28 md:w-32 md:h-32 rounded-[40px] md:rounded-[48px] bg-white border-4 border-yellow-400 overflow-hidden shadow-2xl shadow-yellow-400/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[0].id}`} 
+                      src={getAvatarUrl(podium[0])} 
                       alt="avatar"
                       className="w-full h-full object-contain p-1 bg-yellow-50"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="absolute -bottom-4 -right-4 w-12 h-12 md:w-14 md:h-14 bg-yellow-400 rounded-[22px] flex items-center justify-center text-white font-black border-4 border-white shadow-xl text-xl">1</div>
@@ -154,9 +161,10 @@ export function Ranking() {
                 <div className="relative mb-4 group cursor-pointer">
                   <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-orange-200 overflow-hidden shadow-xl shadow-orange-200/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[2].id}`} 
+                      src={getAvatarUrl(podium[2])} 
                       alt="avatar"
                       className="w-full h-full object-cover p-1 bg-orange-50"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="absolute -bottom-3 -right-3 w-10 h-10 md:w-12 md:h-12 bg-stone-100 rounded-2xl flex items-center justify-center text-orange-600 font-black border-4 border-white shadow-lg">3</div>
@@ -185,11 +193,12 @@ export function Ranking() {
                     <div className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-gray-400 text-sm border border-gray-100 group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange transition-all duration-300">
                       {index + 4}
                     </div>
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm shrink-0">
                       <img 
-                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`} 
-                        className="w-full h-full"
+                        src={getAvatarUrl(profile)} 
+                        className="w-full h-full object-cover"
                         alt="avatar"
+                        referrerPolicy="no-referrer"
                       />
                     </div>
                     <div>

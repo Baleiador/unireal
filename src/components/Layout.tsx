@@ -19,6 +19,7 @@ export function Layout() {
     { name: 'Ranking', path: '/ranking', icon: Trophy },
     { name: 'Transferir', path: '/transfer', icon: Send },
     { name: 'Meu QR', path: '/my-qr', icon: QrCode },
+    { name: 'Perfil', path: '/profile', icon: User },
   ];
 
   if (profile?.is_admin) {
@@ -66,8 +67,17 @@ export function Layout() {
             </div>
             
             <div className="group relative">
-              <button className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-black border-2 border-brand-orange/20 hover:border-brand-orange transition-all">
-                {profile?.full_name?.charAt(0).toUpperCase() || <User className="w-5 h-5" />}
+              <button className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-black border-2 border-brand-orange/20 hover:border-brand-orange transition-all overflow-hidden shrink-0">
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="avatar" 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  profile?.full_name?.charAt(0).toUpperCase() || <User className="w-5 h-5" />
+                )}
               </button>
               
               <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
@@ -76,6 +86,13 @@ export function Layout() {
                     <p className="text-sm font-black text-black truncate">{profile?.full_name}</p>
                     <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">{profile?.is_admin ? 'Administrador' : 'Estudante'}</p>
                   </div>
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-3 px-4 py-3 w-full rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                  >
+                    <User className="w-4 h-4" />
+                    Meu Perfil
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-3 w-full rounded-xl font-bold text-red-500 hover:bg-red-50 transition-colors text-sm"

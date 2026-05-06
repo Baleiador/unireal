@@ -12,6 +12,7 @@ type Profile = {
   id: string;
   full_name: string;
   grade: string | null;
+  avatar_url: string | null;
 };
 
 export function Transfer() {
@@ -46,7 +47,7 @@ export function Transfer() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, grade')
+        .select('id, full_name, grade, avatar_url')
         .eq('id', userId)
         .single();
       
@@ -124,7 +125,7 @@ export function Transfer() {
       const searchUsers = async () => {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, grade')
+          .select('id, full_name, grade, avatar_url')
           .ilike('full_name', `%${searchQuery}%`)
           .neq('id', profile?.id)
           .limit(5);
@@ -337,8 +338,12 @@ export function Transfer() {
                             className="w-full text-left px-5 py-4 rounded-2xl hover:bg-white hover:shadow-xl transition-all flex items-center gap-4 group"
                             onClick={() => setSelectedUser(user)}
                           >
-                            <div className="w-12 h-12 rounded-2xl bg-white text-brand-orange border border-gray-100 flex items-center justify-center font-black transition-transform group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange group-hover:scale-105">
-                              {(user.full_name || '?').charAt(0).toUpperCase()}
+                            <div className="w-12 h-12 rounded-2xl bg-white text-brand-orange border border-gray-100 flex items-center justify-center font-black transition-transform group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange group-hover:scale-105 overflow-hidden shrink-0">
+                              {user.avatar_url ? (
+                                <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                (user.full_name || '?').charAt(0).toUpperCase()
+                              )}
                             </div>
                             <div className="flex flex-col">
                               <span className="font-black text-black tracking-tight">{user.full_name}</span>
@@ -358,8 +363,12 @@ export function Transfer() {
                   <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[32px] border border-gray-100 relative group overflow-hidden">
                     <div className="absolute top-0 right-0 p-12 bg-brand-orange/5 rounded-full -mr-6 -mt-6 blur-2xl" />
                     <div className="flex items-center gap-5 relative z-10">
-                      <div className="w-16 h-16 rounded-[24px] bg-white text-brand-orange border-2 border-brand-orange/10 flex items-center justify-center font-black text-2xl shadow-xl shadow-brand-orange/10 transform transition-transform group-hover:rotate-6">
-                        {selectedUser.full_name.charAt(0).toUpperCase()}
+                      <div className="w-16 h-16 rounded-[24px] bg-white text-brand-orange border-2 border-brand-orange/10 flex items-center justify-center font-black text-2xl shadow-xl shadow-brand-orange/10 transform transition-transform group-hover:rotate-6 overflow-hidden shrink-0">
+                        {selectedUser.avatar_url ? (
+                          <img src={selectedUser.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          selectedUser.full_name.charAt(0).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Enviando para</p>
