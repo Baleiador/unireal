@@ -30,8 +30,10 @@ export function Layout() {
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Logo />
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link to="/" className="flex items-center">
+              <Logo className="scale-90 sm:scale-100 origin-left" />
+            </Link>
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path;

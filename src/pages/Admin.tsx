@@ -643,14 +643,14 @@ Deseja continuar?`)) return;
                activeTab === 'logs' ? <History className="w-6 h-6" /> :
                <Settings className="w-6 h-6" />}
             </div>
-            <h1 className="text-4xl font-black text-black tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight">
               {activeTab === 'users' ? 'Gestão de Alunos' : 
                activeTab === 'announcements' ? 'Central de Avisos' : 
                activeTab === 'logs' ? 'Auditoria Global' :
                'Configurações'}
             </h1>
           </div>
-          <p className="text-gray-500 font-medium">
+          <p className="text-gray-500 font-medium text-base md:text-lg">
             {activeTab === 'users' ? 'Monitore e recompense o progresso dos estudantes.' : 
              activeTab === 'announcements' ? 'Envie comunicados instantâneos para as turmas.' : 
              activeTab === 'logs' ? 'Rastreamento completo do ecossistema econômico.' :
@@ -658,26 +658,28 @@ Deseja continuar?`)) return;
           </p>
         </div>
         
-        <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
-          {[
-            { id: 'users', label: 'Alunos', icon: Users },
-            { id: 'announcements', label: 'Avisos', icon: Megaphone },
-            { id: 'logs', label: 'Auditoria', icon: List },
-            { id: 'settings', label: 'Sistema', icon: Settings },
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
-                activeTab === tab.id 
-                ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
-                : 'text-gray-400 hover:text-black'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar">
+          <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
+            {[
+              { id: 'users', label: 'Alunos', icon: Users },
+              { id: 'announcements', label: 'Avisos', icon: Megaphone },
+              { id: 'logs', label: 'Auditoria', icon: List },
+              { id: 'settings', label: 'Sistema', icon: Settings },
+            ].map(tab => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-[24px] md:rounded-[26px] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                  activeTab === tab.id 
+                  ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+                  : 'text-gray-400 hover:text-black'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

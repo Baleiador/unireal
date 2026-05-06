@@ -354,40 +354,42 @@ CREATE POLICY "Users can update their own investments"
       </header>
 
       {/* Tabs */}
-      <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
-        <button
-          onClick={() => setActiveTab('market')}
-          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
-            activeTab === 'market' 
-              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
-              : 'text-gray-400 hover:text-black'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          Mercado
-        </button>
-        <button
-          onClick={() => setActiveTab('portfolio')}
-          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
-            activeTab === 'portfolio' 
-              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
-              : 'text-gray-400 hover:text-black'
-          }`}
-        >
-          <Wallet className="w-4 h-4" />
-          Carteira
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
-            activeTab === 'history' 
-              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
-              : 'text-gray-400 hover:text-black'
-          }`}
-        >
-          <History className="w-4 h-4" />
-          Histórico
-        </button>
+      <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar">
+        <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
+          <button
+            onClick={() => setActiveTab('market')}
+            className={`flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-[24px] md:rounded-[26px] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              activeTab === 'market' 
+                ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+                : 'text-gray-400 hover:text-black'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Mercado
+          </button>
+          <button
+            onClick={() => setActiveTab('portfolio')}
+            className={`flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-[24px] md:rounded-[26px] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              activeTab === 'portfolio' 
+                ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+                : 'text-gray-400 hover:text-black'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            Carteira
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-[24px] md:rounded-[26px] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              activeTab === 'history' 
+                ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+                : 'text-gray-400 hover:text-black'
+            }`}
+          >
+            <History className="w-4 h-4" />
+            Histórico
+          </button>
+        </div>
       </div>
 
       {activeTab === 'market' && (

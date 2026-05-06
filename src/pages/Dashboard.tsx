@@ -208,18 +208,18 @@ export function Dashboard() {
 
   return (
     <div className="space-y-10 pb-10">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
         <div>
-          <h1 className="text-5xl font-black text-black tracking-tight mb-2">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-black tracking-tight mb-2">
             Olá, {profile?.full_name?.split(' ')[0]}! <span className="animate-pulse">👋</span>
           </h1>
-          <p className="text-gray-500 font-medium text-lg">Seu resumo financeiro e atividades recentes.</p>
+          <p className="text-gray-500 font-medium text-base md:text-lg">Seu resumo financeiro e atividades recentes.</p>
         </div>
         {!profile?.is_admin && (
-          <div className="bg-white/80 backdrop-blur-sm p-4 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="text-right">
+          <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] md:rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 w-fit">
+            <div className="text-left">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Valor na Feira</p>
-              <p className="text-xl font-black text-brand-orange">{formatBRL(profile?.balance || 0)}</p>
+              <p className="text-lg md:text-xl font-black text-brand-orange">{formatBRL(profile?.balance || 0)}</p>
             </div>
           </div>
         )}
@@ -258,28 +258,28 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Stats Block */}
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          <Card className="bg-gradient-to-br from-brand-orange via-[#FF9D52] to-[#F27D26] text-white border-none min-h-[280px] p-1 shadow-2xl shadow-brand-orange/20 relative group">
-            <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-110 transition-transform duration-700" />
-            <CardContent className="p-10 flex flex-col justify-between h-full relative z-10">
+        <div className="lg:col-span-8 flex flex-col gap-6 md:gap-8">
+          <Card className="bg-gradient-to-br from-brand-orange via-[#FF9D52] to-[#F27D26] text-white border-none min-h-[220px] md:min-h-[280px] p-1 shadow-2xl shadow-brand-orange/20 relative group">
+            <div className="absolute top-0 right-0 p-24 md:p-32 bg-white/10 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 blur-2xl group-hover:scale-110 transition-transform duration-700" />
+            <CardContent className="p-6 md:p-10 flex flex-col justify-between h-full relative z-10">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.2em] text-white/70 mb-8">
+                <p className="text-[10px] md:text-sm font-black uppercase tracking-[0.2em] text-white/70 mb-4 md:mb-8">
                   Patrimônio Consolidado
                 </p>
-                <div className="flex items-baseline gap-4">
-                  <h2 className="text-8xl font-black tracking-tighter">
+                <div className="flex items-baseline gap-2 md:gap-4">
+                  <h2 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tighter">
                     {profile?.is_admin ? '∞' : (profile?.balance || 0).toLocaleString()}
                   </h2>
-                  <span className="text-2xl font-black text-white/50 uppercase">UR</span>
+                  <span className="text-xl md:text-2xl font-black text-white/50 uppercase">UR</span>
                 </div>
               </div>
               
               {!profile?.is_admin && (
-                <div className="flex items-center gap-2 mt-8">
-                  <span className="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-sm font-black border border-white/10">
+                <div className="flex items-center gap-2 mt-6 md:mt-8">
+                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     Estudante
                   </span>
-                  <span className="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-sm font-black border border-white/10">
+                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     {profile?.grade || 'Sem Turma'}
                   </span>
                 </div>
@@ -287,44 +287,44 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block col-span-2 md:col-span-1">
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group h-full">
-                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-brand-orange flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                  <ArrowUpRight className="w-6 h-6" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block group">
+              <div className="bg-white p-4 md:p-6 rounded-[28px] md:rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col h-full">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-orange-50 text-brand-orange flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:scale-110">
+                  <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <p className="font-black text-black leading-tight uppercase text-xs tracking-widest mb-1">Mover</p>
-                <p className="text-gray-400 font-bold text-[10px] uppercase">{profile?.is_admin ? 'Gerar' : 'Enviar'}</p>
+                <p className="font-black text-black leading-tight uppercase text-[10px] md:text-xs tracking-widest mb-1">Mover</p>
+                <p className="text-gray-400 font-bold text-[8px] md:text-[10px] uppercase">{profile?.is_admin ? 'Gerar' : 'Enviar'}</p>
               </div>
             </Link>
 
-            <Link to="/investments" className="block col-span-2 md:col-span-1">
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group h-full">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                  <TrendingUp className="w-6 h-6" />
+            <Link to="/investments" className="block group">
+              <div className="bg-white p-4 md:p-6 rounded-[28px] md:rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col h-full">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:scale-110">
+                  <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <p className="font-black text-black leading-tight uppercase text-xs tracking-widest mb-1">Investir</p>
-                <p className="text-gray-400 font-bold text-[10px] uppercase">Rendimento</p>
+                <p className="font-black text-black leading-tight uppercase text-[10px] md:text-xs tracking-widest mb-1">Investir</p>
+                <p className="text-gray-400 font-bold text-[8px] md:text-[10px] uppercase">Rendimento</p>
               </div>
             </Link>
 
-            <Link to="/my-qr" className="block col-span-2 md:col-span-1">
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group h-full">
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                  <QrCode className="w-6 h-6" />
+            <Link to="/my-qr" className="block group">
+              <div className="bg-white p-4 md:p-6 rounded-[28px] md:rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col h-full">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:scale-110">
+                  <QrCode className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <p className="font-black text-black leading-tight uppercase text-xs tracking-widest mb-1">Receber</p>
-                <p className="text-gray-400 font-bold text-[10px] uppercase">Meu QR Code</p>
+                <p className="font-black text-black leading-tight uppercase text-[10px] md:text-xs tracking-widest mb-1">Receber</p>
+                <p className="text-gray-400 font-bold text-[8px] md:text-[10px] uppercase">QR Code</p>
               </div>
             </Link>
 
-            <Link to="/ranking" className="block col-span-2 md:col-span-1">
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group h-full">
-                <div className="w-12 h-12 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                  <Trophy className="w-6 h-6" />
+            <Link to="/ranking" className="block group">
+              <div className="bg-white p-4 md:p-6 rounded-[28px] md:rounded-[32px] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col h-full">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:scale-110">
+                  <Trophy className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <p className="font-black text-black leading-tight uppercase text-xs tracking-widest mb-1">Ranking</p>
-                <p className="text-gray-400 font-bold text-[10px] uppercase">Posição</p>
+                <p className="font-black text-black leading-tight uppercase text-[10px] md:text-xs tracking-widest mb-1">Ranking</p>
+                <p className="text-gray-400 font-bold text-[8px] md:text-[10px] uppercase">Escola</p>
               </div>
             </Link>
           </div>

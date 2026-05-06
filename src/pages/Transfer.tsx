@@ -214,15 +214,15 @@ export function Transfer() {
             <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
               <Send className="w-6 h-6" />
             </div>
-            <h1 className="text-4xl font-black text-black tracking-tight underline decoration-all decoration-brand-orange/30 underline-offset-8">Movimentar Unireais</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight underline decoration-all decoration-brand-orange/30 underline-offset-8">Movimentar Unireais</h1>
           </div>
-          <p className="text-gray-500 font-medium text-lg">Distribua recompensas e saldo entre colegas.</p>
+          <p className="text-gray-500 font-medium text-base md:text-lg">Distribua recompensas e saldo entre colegas.</p>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div className="bg-white p-4 rounded-[28px] md:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4 w-fit">
           <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Seu Saldo</p>
-            <p className="text-xl font-black text-brand-orange">{profile?.balance?.toLocaleString()} <span className="text-[10px] text-gray-400 font-bold uppercase">UR</span></p>
+            <p className="text-lg md:text-xl font-black text-brand-orange">{profile?.balance?.toLocaleString()} <span className="text-[10px] text-gray-400 font-bold uppercase">UR</span></p>
           </div>
         </div>
       </header>
@@ -379,12 +379,12 @@ export function Transfer() {
                         min="1"
                         max={profile?.balance || 0}
                         placeholder="0"
-                        className="text-5xl font-black h-28 pl-8 pr-20 rounded-[32px] bg-gray-50 border-transparent focus:bg-white focus:border-brand-orange focus:ring-0 transition-all placeholder:text-gray-200"
+                        className="text-4xl md:text-5xl font-black h-24 md:h-28 pl-8 pr-20 rounded-[32px] bg-gray-50 border-transparent focus:bg-white focus:border-brand-orange focus:ring-0 transition-all placeholder:text-gray-200"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         required
                       />
-                      <span className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-300 font-black text-2xl uppercase tracking-widest select-none">
+                      <span className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-300 font-black text-xl md:text-2xl uppercase tracking-widest select-none">
                         UR
                       </span>
                     </div>

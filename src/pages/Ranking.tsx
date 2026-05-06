@@ -68,12 +68,12 @@ export function Ranking() {
             <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
               <Trophy className="w-6 h-6" />
             </div>
-            <h1 className="text-4xl font-black text-black tracking-tight underline decoration-brand-orange/30">Destaques da Escola</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight underline decoration-brand-orange/30">Destaques da Escola</h1>
           </div>
-          <p className="text-gray-500 font-medium text-lg">Os maiores patrimônios do colégio em tempo real.</p>
+          <p className="text-gray-500 font-medium text-base md:text-lg">Os maiores patrimônios do colégio em tempo real.</p>
         </div>
         
-        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2">
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 w-fit">
           <span className="text-[10px] font-black uppercase text-gray-400 px-3 tracking-widest">Filtrar:</span>
           <select
             className="px-4 py-2 rounded-xl bg-gray-50 border-none outline-none font-black text-xs uppercase tracking-wider text-gray-700 appearance-none cursor-pointer hover:bg-gray-100 transition-all"
@@ -98,74 +98,76 @@ export function Ranking() {
       ) : (
         <div className="space-y-12">
           {/* Podium */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end max-w-4xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-end justify-center gap-6 md:gap-0 max-w-5xl mx-auto px-4 md:h-[450px] pt-12 md:pt-20">
             {/* 2nd Place */}
             {podium[1] && (
-              <div className="order-2 md:order-1 flex flex-col items-center">
-                <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-3xl bg-gray-100 border-4 border-gray-200 flex items-center justify-center text-gray-400 shadow-xl p-1 overflow-hidden">
+              <div className="order-2 md:order-1 flex flex-col items-center w-full md:w-1/3">
+                <div className="relative mb-4 group cursor-pointer">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-slate-200 overflow-hidden shadow-xl shadow-slate-200/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
                       src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[1].id}`} 
                       alt="avatar"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover p-1 bg-slate-50"
                     />
                   </div>
-                  <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-gray-200 rounded-2xl flex items-center justify-center text-gray-500 font-black border-4 border-white shadow-lg">2</div>
+                  <div className="absolute -bottom-3 -right-3 w-10 h-10 md:w-12 md:h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500 font-black border-4 border-white shadow-lg">2</div>
                 </div>
                 <div className="text-center mb-4">
-                  <p className="font-black text-black truncate max-w-[150px]">{podium[1].full_name}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{podium[1].grade}</p>
+                  <p className="font-black text-black truncate max-w-[200px] md:max-w-none text-base md:text-lg tracking-tight">{podium[1].full_name}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{podium[1].grade}</p>
                 </div>
-                <div className="w-full bg-gray-200 h-24 rounded-t-3xl shadow-lg border-x border-t border-gray-300 flex items-center justify-center">
-                  <span className="text-gray-400 font-black text-xs uppercase tracking-widest opacity-50">Prata</span>
+                <div className="w-full md:w-48 bg-slate-100 h-20 md:h-28 rounded-t-[32px] md:rounded-t-3xl shadow-lg border-x border-t border-slate-200 flex flex-col items-center justify-center gap-1">
+                   <p className="text-xl md:text-2xl font-black text-slate-600">{podium[1].balance.toLocaleString()} UR</p>
+                   <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest opacity-50">Prata</span>
                 </div>
               </div>
             )}
 
             {/* 1st Place */}
             {podium[0] && (
-              <div className="order-1 md:order-2 flex flex-col items-center">
-                <Crown className="w-8 h-8 text-yellow-500 mb-2 animate-bounce" />
-                <div className="relative mb-4">
-                  <div className="w-32 h-32 rounded-[40px] bg-yellow-50 border-4 border-yellow-400 flex items-center justify-center text-yellow-600 shadow-2xl p-1 overflow-hidden ring-8 ring-yellow-400/10">
+              <div className="order-1 md:order-2 flex flex-col items-center w-full md:w-1/3 z-10 md:scale-110 md:-translate-y-8">
+                <Crown className="w-10 h-10 md:w-12 md:h-12 text-yellow-500 mb-2 animate-bounce fill-yellow-500/20" />
+                <div className="relative mb-4 group cursor-pointer">
+                  <div className="w-28 h-28 md:w-32 md:h-32 rounded-[40px] md:rounded-[48px] bg-white border-4 border-yellow-400 overflow-hidden shadow-2xl shadow-yellow-400/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
                       src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[0].id}`} 
                       alt="avatar"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain p-1 bg-yellow-50"
                     />
                   </div>
-                  <div className="absolute -bottom-4 -right-4 w-14 h-14 bg-yellow-400 rounded-[22px] flex items-center justify-center text-white font-black border-4 border-white shadow-xl text-xl">1</div>
+                  <div className="absolute -bottom-4 -right-4 w-12 h-12 md:w-14 md:h-14 bg-yellow-400 rounded-[22px] flex items-center justify-center text-white font-black border-4 border-white shadow-xl text-xl">1</div>
                 </div>
                 <div className="text-center mb-6">
-                  <p className="font-black text-lg text-black">{podium[0].full_name}</p>
-                  <p className="text-xs text-brand-orange font-bold uppercase tracking-tighter">{podium[0].grade}</p>
+                  <p className="font-black text-xl md:text-2xl text-black tracking-tight">{podium[0].full_name}</p>
+                  <p className="text-[10px] text-brand-orange font-black uppercase tracking-widest">{podium[0].grade}</p>
                 </div>
-                <div className="w-full bg-yellow-400/90 h-40 rounded-t-[40px] shadow-2xl border-x border-t border-yellow-500 flex flex-col items-center justify-center gap-1">
-                   <p className="text-white text-2xl font-black">{podium[0].balance.toLocaleString()} UR</p>
-                   <span className="text-yellow-100 font-black text-[10px] uppercase tracking-[0.3em] opacity-80">Ouro</span>
+                <div className="w-full md:w-56 bg-gradient-to-t from-yellow-400 to-yellow-300 h-28 md:h-44 rounded-t-[40px] shadow-2xl border-x border-t border-yellow-500 flex flex-col items-center justify-center gap-1">
+                   <p className="text-white text-3xl md:text-4xl font-black tracking-tighter drop-shadow-md">{podium[0].balance.toLocaleString()} UR</p>
+                   <span className="text-yellow-600 font-black text-[10px] uppercase tracking-[0.3em] opacity-80">Ouro</span>
                 </div>
               </div>
             )}
 
             {/* 3rd Place */}
             {podium[2] && (
-              <div className="order-3 md:order-3 flex flex-col items-center">
-                <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-3xl bg-orange-50 border-4 border-orange-200 flex items-center justify-center text-orange-400 shadow-xl p-1 overflow-hidden">
+              <div className="order-3 md:order-3 flex flex-col items-center w-full md:w-1/3">
+                <div className="relative mb-4 group cursor-pointer">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-orange-200 overflow-hidden shadow-xl shadow-orange-200/20 group-hover:scale-105 transition-transform duration-500">
                     <img 
                       src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[2].id}`} 
                       alt="avatar"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover p-1 bg-orange-50"
                     />
                   </div>
-                  <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-orange-200 rounded-2xl flex items-center justify-center text-orange-600 font-black border-4 border-white shadow-lg">3</div>
+                  <div className="absolute -bottom-3 -right-3 w-10 h-10 md:w-12 md:h-12 bg-stone-100 rounded-2xl flex items-center justify-center text-orange-600 font-black border-4 border-white shadow-lg">3</div>
                 </div>
                 <div className="text-center mb-4">
-                  <p className="font-black text-black truncate max-w-[150px]">{podium[2].full_name}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{podium[2].grade}</p>
+                  <p className="font-black text-black truncate max-w-[200px] md:max-w-none text-base md:text-lg tracking-tight">{podium[2].full_name}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{podium[2].grade}</p>
                 </div>
-                <div className="w-full bg-orange-200 h-20 rounded-t-3xl shadow-lg border-x border-t border-orange-300 flex items-center justify-center">
-                  <span className="text-orange-400 font-black text-[10px] uppercase tracking-widest opacity-50">Bronze</span>
+                <div className="w-full md:w-48 bg-orange-100 h-16 md:h-24 rounded-t-[32px] md:rounded-t-3xl shadow-lg border-x border-t border-orange-200 flex flex-col items-center justify-center gap-1">
+                   <p className="text-lg md:text-xl font-black text-orange-700">{podium[2].balance.toLocaleString()} UR</p>
+                   <span className="text-orange-400 font-black text-[10px] uppercase tracking-widest opacity-50">Bronze</span>
                 </div>
               </div>
             )}
