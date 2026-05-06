@@ -3,10 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon, UserRoundPen } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { ProfileModal } from '../components/ProfileModal';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   Investment, 
@@ -49,7 +48,6 @@ export function Dashboard() {
   const [selicRate, setSelicRate] = useState<number>(10.5);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [closedAnns, setClosedAnns] = useState<string[]>([]);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -211,13 +209,9 @@ export function Dashboard() {
   return (
     <div className="space-y-10 pb-10">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
-        <div 
-          onClick={() => setIsProfileModalOpen(true)}
-          className="cursor-pointer group"
-        >
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-black tracking-tight mb-2 flex items-center gap-3">
+        <div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-black tracking-tight mb-2">
             Olá, {profile?.full_name?.split(' ')[0]}! <span className="animate-pulse">👋</span>
-            <UserRoundPen className="w-6 h-6 text-gray-200 group-hover:text-brand-orange transition-colors" />
           </h1>
           <p className="text-gray-500 font-medium text-base md:text-lg">Seu resumo financeiro e atividades recentes.</p>
         </div>
@@ -281,22 +275,17 @@ export function Dashboard() {
               </div>
               
               {!profile?.is_admin && (
-                <div 
-                  className="flex items-center gap-2 mt-6 md:mt-8 cursor-pointer group"
-                  onClick={() => setIsProfileModalOpen(true)}
-                >
-                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10 group-hover:bg-white/30 transition-all">
+                <div className="flex items-center gap-2 mt-6 md:mt-8">
+                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     Estudante
                   </span>
-                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10 group-hover:bg-white/30 transition-all">
+                  <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     {profile?.grade || 'Sem Turma'}
                   </span>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block group">
