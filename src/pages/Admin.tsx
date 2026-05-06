@@ -13,7 +13,6 @@ type Profile = {
   full_name: string;
   balance: number;
   grade: string | null;
-  avatar_url?: string | null;
   total_invested?: number;
   raw_password?: string;
 };
@@ -417,7 +416,7 @@ Deseja continuar?`)) return;
       // 1. Fetch Students
       const { data: studentData, error: studentError } = await supabase
         .from('profiles')
-        .select('id, full_name, balance, grade, raw_password, avatar_url')
+        .select('id, full_name, balance, grade, raw_password')
         .eq('is_admin', false)
         .order('full_name');
 
@@ -759,12 +758,8 @@ Deseja continuar?`)) return;
                           <tr key={student.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold overflow-hidden border border-brand-orange/20">
-                                  {student.avatar_url ? (
-                                    <img src={student.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                                  ) : (
-                                    student.full_name.charAt(0).toUpperCase()
-                                  )}
+                                <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
+                                  {student.full_name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex flex-col">
                                   <span className="font-semibold text-black">{student.full_name}</span>

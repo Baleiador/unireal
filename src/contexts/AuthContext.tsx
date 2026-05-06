@@ -35,23 +35,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data: profileData, error: profileError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
-      const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
-      
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
+      if (error) {
+        console.error('Error fetching profile:', error);
       } else {
-        // Fallback to metadata if avatar_url is not in table or is null
-        const mergedProfile = {
-          ...profileData,
-          avatar_url: profileData.avatar_url || userData?.user_metadata?.avatar_url || null
-        };
-        setProfile(mergedProfile);
+        setProfile(data);
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error);
