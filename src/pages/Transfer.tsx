@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { Send, Search, UserCheck, QrCode, X } from 'lucide-react';
+import { Send, Search, UserCheck, QrCode, X, CheckCircle, ArrowUpRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
