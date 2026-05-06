@@ -9,6 +9,7 @@ type Profile = {
   full_name: string;
   balance: number;
   grade: string | null;
+  avatar_url?: string | null;
 };
 
 export function Ranking() {
@@ -37,7 +38,7 @@ export function Ranking() {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, balance, grade')
+        .select('id, full_name, balance, grade, avatar_url')
         .eq('is_admin', false)
         .order('balance', { ascending: false })
         .limit(50);
@@ -103,9 +104,9 @@ export function Ranking() {
             {podium[1] && (
               <div className="order-2 md:order-1 flex flex-col items-center w-full md:w-1/3">
                 <div className="relative mb-4 group cursor-pointer">
-                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-slate-200 overflow-hidden shadow-xl shadow-slate-200/20 group-hover:scale-105 transition-transform duration-500">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-slate-200 overflow-hidden shadow-xl shadow-slate-200/20 group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[1].id}`} 
+                      src={podium[1].avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[1].id}`} 
                       alt="avatar"
                       className="w-full h-full object-cover p-1 bg-slate-50"
                     />
@@ -128,9 +129,9 @@ export function Ranking() {
               <div className="order-1 md:order-2 flex flex-col items-center w-full md:w-1/3 z-10 md:scale-110 md:-translate-y-8">
                 <Crown className="w-10 h-10 md:w-12 md:h-12 text-yellow-500 mb-2 animate-bounce fill-yellow-500/20" />
                 <div className="relative mb-4 group cursor-pointer">
-                  <div className="w-28 h-28 md:w-32 md:h-32 rounded-[40px] md:rounded-[48px] bg-white border-4 border-yellow-400 overflow-hidden shadow-2xl shadow-yellow-400/20 group-hover:scale-105 transition-transform duration-500">
+                  <div className="w-28 h-28 md:w-32 md:h-32 rounded-[40px] md:rounded-[48px] bg-white border-4 border-yellow-400 overflow-hidden shadow-2xl shadow-yellow-400/20 group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[0].id}`} 
+                      src={podium[0].avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[0].id}`} 
                       alt="avatar"
                       className="w-full h-full object-contain p-1 bg-yellow-50"
                     />
@@ -152,9 +153,9 @@ export function Ranking() {
             {podium[2] && (
               <div className="order-3 md:order-3 flex flex-col items-center w-full md:w-1/3">
                 <div className="relative mb-4 group cursor-pointer">
-                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-orange-200 overflow-hidden shadow-xl shadow-orange-200/20 group-hover:scale-105 transition-transform duration-500">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl md:rounded-[40px] bg-white border-4 border-orange-200 overflow-hidden shadow-xl shadow-orange-200/20 group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
                     <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[2].id}`} 
+                      src={podium[2].avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${podium[2].id}`} 
                       alt="avatar"
                       className="w-full h-full object-cover p-1 bg-orange-50"
                     />
@@ -185,9 +186,9 @@ export function Ranking() {
                     <div className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-gray-400 text-sm border border-gray-100 group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange transition-all duration-300">
                       {index + 4}
                     </div>
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm flex items-center justify-center">
                       <img 
-                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`} 
+                        src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`} 
                         className="w-full h-full"
                         alt="avatar"
                       />

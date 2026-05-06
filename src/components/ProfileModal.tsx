@@ -50,7 +50,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     try {
       const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
 
-      // Update profile
+      // 1. Update Profile (Name and Grade) - try with avatar_url first
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -60,12 +60,40 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         })
         .eq('id', user.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.warn('Failed to update avatar_url in profiles table, trying without it...', profileError);
+        // If it's a "column does not exist" error (42703), try without avatar_url
+        if (profileError.code === '42703') {
+          const { error: retryError } = await supabase
+            .from('profiles')
+            .update({
+              full_name: fullName,
+              grade: grade,
+            })
+            .eq('id', user.id);
+          
+          if (retryError) throw retryError;
+        } else {
+          throw profileError;
+        }
+      }
 
-      // Update email if changed (Supabase handles this with confirmation usually)
+      // 2. Store avatar in Auth metadata as a backup (works for current user)
+      const { error: metaError } = await supabase.auth.updateUser({
+        data: { avatar_url: newAvatarUrl }
+      });
+      if (metaError) console.error('Error saving metadata:', metaError);
+
+      // 3. Update email if changed
       if (email !== user.email) {
         const { error: emailError } = await supabase.auth.updateUser({ email });
-        if (emailError) throw emailError;
+        if (emailError) {
+          // If email update fails, we still consider the profile updated, but warn the user
+          console.error('Error updating email:', emailError);
+          alert('Perfil atualizado, mas houve um erro ao mudar o e-mail: ' + emailError.message);
+        } else {
+          alert('Perfil atualizado! Verifique seu novo e-mail para confirmar a alteração.');
+        }
       }
 
       await refreshProfile();
@@ -74,9 +102,9 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         setSuccess(false);
         onClose();
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      alert('Erro ao atualizar perfil. Tente novamente.');
+      alert('Erro ao atualizar perfil: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
