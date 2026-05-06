@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { Send, Search, UserCheck, QrCode, X } from 'lucide-react';
+import { Send, Search, QrCode, X, ArrowUpRight, CheckCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -141,12 +141,13 @@ export function Transfer() {
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser || !amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      setError('Por favor, selecione um usuário e insira um valor válido.');
+    const amountNum = Number(amount);
+    if (!selectedUser || !amount || isNaN(amountNum) || amountNum <= 0) {
+      setError('Por favor, selecione um usuário e insira um valor válido (maior que zero).');
       return;
     }
 
-    if (Number(amount) > (profile?.balance || 0)) {
+    if (amountNum > (profile?.balance || 0)) {
       setError('Saldo insuficiente.');
       return;
     }
@@ -155,16 +156,20 @@ export function Transfer() {
     setError(null);
 
     try {
+      // Security check: final validation of positive amount before DB operations
+      const finalAmount = Math.abs(amountNum);
+      if (finalAmount <= 0) throw new Error("Valor inválido");
       // In a real app, this should be a stored procedure (RPC) in Supabase
       // to ensure transaction atomicity. For this demo, we'll do it sequentially.
       
       // 1. Deduct from sender
       const { error: senderError } = await supabase
         .from('profiles')
-        .update({ balance: (profile?.balance || 0) - Number(amount) })
-        .eq('id', profile?.id);
+        .update({ balance: (profile?.balance || 0) - finalAmount })
+        .eq('id', profile?.id)
+        .gte('balance', finalAmount); // SQL level protection: balance must be >= amount
 
-      if (senderError) throw senderError;
+      if (senderError) throw new Error("Falha ao debitar saldo. Verifique se você tem saldo em conta.");
 
       // 2. Add to receiver
       // First get receiver's current balance
@@ -178,7 +183,7 @@ export function Transfer() {
 
       const { error: receiverUpdateError } = await supabase
         .from('profiles')
-        .update({ balance: receiverData.balance + Number(amount) })
+        .update({ balance: receiverData.balance + finalAmount })
         .eq('id', selectedUser.id);
 
       if (receiverUpdateError) throw receiverUpdateError;
@@ -189,7 +194,7 @@ export function Transfer() {
         .insert({
           sender_id: profile?.id,
           receiver_id: selectedUser.id,
-          amount: Number(amount),
+          amount: finalAmount,
         });
 
       if (txError) throw txError;
@@ -333,7 +338,7 @@ export function Transfer() {
                             onClick={() => setSelectedUser(user)}
                           >
                             <div className="w-12 h-12 rounded-2xl bg-white text-brand-orange border border-gray-100 flex items-center justify-center font-black transition-transform group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange group-hover:scale-105">
-                              {user.full_name.charAt(0).toUpperCase()}
+                              {(user.full_name || '?').charAt(0).toUpperCase()}
                             </div>
                             <div className="flex flex-col">
                               <span className="font-black text-black tracking-tight">{user.full_name}</span>
@@ -377,6 +382,12 @@ export function Transfer() {
                       <Input
                         type="number"
                         min="1"
+                        step="1"
+                        onKeyDown={(e) => {
+                          if (e.key === '-' || e.key === 'e' || e.key === '+') {
+                            e.preventDefault();
+                          }
+                        }}
                         max={profile?.balance || 0}
                         placeholder="0"
                         className="text-4xl md:text-5xl font-black h-24 md:h-28 pl-8 pr-20 rounded-[32px] bg-gray-50 border-transparent focus:bg-white focus:border-brand-orange focus:ring-0 transition-all placeholder:text-gray-200"

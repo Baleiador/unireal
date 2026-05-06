@@ -152,13 +152,13 @@ export function Investments() {
 
   const handleInvest = async () => {
     if (!profile || !selectedProduct) return;
-    const qty = Number(quantity);
+    const qty = Math.abs(Number(quantity));
     if (isNaN(qty) || qty <= 0) {
-      setErrorMsg("Quantidade inválida.");
+      setErrorMsg("Quantidade inválida. Insira um valor maior que zero.");
       return;
     }
     
-    const totalCost = qty * currentProduct.basePrice;
+    const totalCost = Math.round(qty * currentProduct.basePrice);
 
     if (totalCost > (profile.balance || 0)) {
       setErrorMsg("Saldo insuficiente para esta compra.");
@@ -178,7 +178,16 @@ export function Investments() {
     }
 
     try {
-      // Create investment record
+      // 1. Update balance with SQL-level safety check
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ balance: (profile.balance || 0) - totalCost })
+        .eq('id', profile.id)
+        .gte('balance', totalCost); // Ensure balance is enough
+
+      if (balanceError) throw new Error("Saldo insuficiente ou falha na transação.");
+
+      // 2. Create investment record
       const { error: investError } = await supabase
         .from('investments')
         .insert({
@@ -191,15 +200,11 @@ export function Investments() {
           rate_value: 5, // Base default drift
         });
 
-      if (investError) throw investError;
-
-      // Update balance
-      const { error: balanceError } = await supabase
-        .from('profiles')
-        .update({ balance: (profile.balance || 0) - totalCost })
-        .eq('id', profile.id);
-
-      if (balanceError) throw balanceError;
+      if (investError) {
+        // Rollback balance if investment record fails
+        await supabase.from('profiles').update({ balance: profile.balance }).eq('id', profile.id);
+        throw investError;
+      }
 
       setSuccessMsg(`Você comprou ${qty} títulos de ${currentProduct.name}!`);
       setQuantity('1');
@@ -448,6 +453,12 @@ CREATE POLICY "Users can update their own investments"
                     <Input 
                       type="number" 
                       min="1"
+                      step="1"
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === 'e' || e.key === '+') {
+                          e.preventDefault();
+                        }
+                      }}
                       className="bg-white/10 border-white/20 text-white text-xl font-black h-16 rounded-2xl focus:border-brand-orange transition-all"
                       value={quantity}
                       onChange={e => setQuantity(e.target.value)}
