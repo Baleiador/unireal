@@ -634,54 +634,50 @@ Deseja continuar?`)) return;
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-            {activeTab === 'users' ? <PlusCircle className="w-8 h-8 text-brand-orange" /> : 
-             activeTab === 'announcements' ? <Megaphone className="w-8 h-8 text-brand-orange" /> : 
-             activeTab === 'logs' ? <History className="w-8 h-8 text-brand-orange" /> :
-             <Settings className="w-8 h-8 text-brand-orange" />}
-            {activeTab === 'users' ? 'Gerar Unireais' : 
-             activeTab === 'announcements' ? 'Sistema de Avisos' : 
-             activeTab === 'logs' ? 'Log do Sistema' :
-             'Configurações'}
-          </h1>
-          <p className="text-gray-500">
-            {activeTab === 'users' ? 'Área exclusiva do professor para recompensar alunos.' : 
-             activeTab === 'announcements' ? 'Comunique informções importantes para turmas específicas.' : 
-             activeTab === 'logs' ? 'Rastreamento completo de todas as transações e investimentos.' :
-             'Gerencie os parâmetros globais da economia.'}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
+              {activeTab === 'users' ? <Users className="w-6 h-6" /> : 
+               activeTab === 'announcements' ? <Megaphone className="w-6 h-6" /> : 
+               activeTab === 'logs' ? <History className="w-6 h-6" /> :
+               <Settings className="w-6 h-6" />}
+            </div>
+            <h1 className="text-4xl font-black text-black tracking-tight">
+              {activeTab === 'users' ? 'Gestão de Alunos' : 
+               activeTab === 'announcements' ? 'Central de Avisos' : 
+               activeTab === 'logs' ? 'Auditoria Global' :
+               'Configurações'}
+            </h1>
+          </div>
+          <p className="text-gray-500 font-medium">
+            {activeTab === 'users' ? 'Monitore e recompense o progresso dos estudantes.' : 
+             activeTab === 'announcements' ? 'Envie comunicados instantâneos para as turmas.' : 
+             activeTab === 'logs' ? 'Rastreamento completo do ecossistema econômico.' :
+             'Ajuste os parâmetros fundamentais do sistema.'}
           </p>
         </div>
-        <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'users' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <Users className="w-4 h-4" />
-            Alunos
-          </button>
-          <button 
-            onClick={() => setActiveTab('announcements')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'announcements' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <Bell className="w-4 h-4" />
-            Avisos
-          </button>
-          <button 
-            onClick={() => setActiveTab('logs')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'logs' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <List className="w-4 h-4" />
-            Atividade
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'settings' ? 'bg-white text-brand-orange shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <Settings className="w-4 h-4" />
-            Cotação
-          </button>
+        
+        <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
+          {[
+            { id: 'users', label: 'Alunos', icon: Users },
+            { id: 'announcements', label: 'Avisos', icon: Megaphone },
+            { id: 'logs', label: 'Auditoria', icon: List },
+            { id: 'settings', label: 'Sistema', icon: Settings },
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
+                activeTab === tab.id 
+                ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+                : 'text-gray-400 hover:text-black'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 

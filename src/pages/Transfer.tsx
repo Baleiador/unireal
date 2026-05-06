@@ -207,25 +207,42 @@ export function Transfer() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
-      <header>
-        <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-          <Send className="w-8 h-8 text-brand-orange" />
-          Transferir Unireais
-        </h1>
-        <p className="text-gray-500">Envie recompensas para seus colegas.</p>
+    <div className="space-y-12 max-w-4xl mx-auto pb-10">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
+              <Send className="w-6 h-6" />
+            </div>
+            <h1 className="text-4xl font-black text-black tracking-tight underline decoration-all decoration-brand-orange/30 underline-offset-8">Movimentar Unireais</h1>
+          </div>
+          <p className="text-gray-500 font-medium text-lg">Distribua recompensas e saldo entre colegas.</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Seu Saldo</p>
+            <p className="text-xl font-black text-brand-orange">{profile?.balance?.toLocaleString()} <span className="text-[10px] text-gray-400 font-bold uppercase">UR</span></p>
+          </div>
+        </div>
       </header>
 
-      <Card>
-        <CardContent className="p-8">
+      <Card className="border-none shadow-2xl overflow-hidden bg-white max-w-2xl mx-auto">
+        <CardContent className="p-10">
           {success ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Send className="w-10 h-10" />
+            <div className="text-center py-12 animate-in zoom-in-95 duration-500">
+              <div className="w-24 h-24 bg-green-50 text-green-500 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-500/10 scale-110">
+                <CheckCircle className="w-12 h-12" />
               </div>
-              <h2 className="text-2xl font-bold text-black mb-2">Transferência Realizada!</h2>
-              <p className="text-gray-500">Você enviou {amount} UR para {selectedUser?.full_name}.</p>
-              <p className="text-sm text-gray-400 mt-4">Redirecionando para o dashboard...</p>
+              <h2 className="text-3xl font-black text-black mb-4 tracking-tight">Envio Concluído!</h2>
+              <p className="text-gray-500 font-medium text-lg leading-relaxed">
+                Você enviou <span className="text-brand-orange font-black">{amount} UR</span> para <br/>
+                <span className="text-black font-black underline decoration-brand-orange/20 decoration-4 underline-offset-4">{selectedUser?.full_name}</span>.
+              </p>
+              <div className="mt-10 p-4 bg-gray-50 rounded-2xl inline-flex items-center gap-2 text-gray-400 font-bold text-xs uppercase tracking-widest">
+                <div className="w-2 h-2 bg-brand-orange rounded-full animate-ping" />
+                Retornando ao Início
+              </div>
             </div>
           ) : (
             <form onSubmit={handleTransfer} className="space-y-6">
@@ -282,92 +299,103 @@ export function Transfer() {
               </div>
 
               {!selectedUser ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-700">Para quem você quer enviar?</label>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between px-2">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Destinatário</label>
                     <button 
                       type="button" 
                       onClick={() => setShowScanner(true)}
-                      className="text-brand-orange font-bold text-sm flex items-center gap-1 hover:underline"
+                      className="bg-black text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-black/10"
                     >
                       <QrCode className="w-4 h-4" />
-                      Escanear QR
+                      Escanear
                     </button>
                   </div>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <div className="relative group">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 w-6 h-6 group-focus-within:text-brand-orange transition-colors" />
                     <Input
                       type="text"
                       placeholder="Busque pelo nome do aluno..."
-                      className="pl-12"
+                      className="pl-16 h-16 rounded-3xl bg-gray-50 border-transparent focus:bg-white focus:border-brand-orange focus:ring-0 text-lg font-bold transition-all"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
 
-                  {searchResults.length > 0 && (
-                    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                      {searchResults.map((user) => (
-                        <button
-                          key={user.id}
-                          type="button"
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-                          onClick={() => setSelectedUser(user)}
-                        >
-                          <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold">
-                            {user.full_name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-black">{user.full_name}</span>
-                            {user.grade && <span className="text-xs text-gray-500">{user.grade}</span>}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {searchResults.length > 0 && (
+                      <div className="bg-gray-50 rounded-[32px] overflow-hidden p-2 space-y-1">
+                        {searchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            className="w-full text-left px-5 py-4 rounded-2xl hover:bg-white hover:shadow-xl transition-all flex items-center gap-4 group"
+                            onClick={() => setSelectedUser(user)}
+                          >
+                            <div className="w-12 h-12 rounded-2xl bg-white text-brand-orange border border-gray-100 flex items-center justify-center font-black transition-transform group-hover:bg-brand-orange group-hover:text-white group-hover:border-brand-orange group-hover:scale-105">
+                              {user.full_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-black text-black tracking-tight">{user.full_name}</span>
+                              {user.grade && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{user.grade}</span>}
+                            </div>
+                            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                               <ArrowUpRight className="w-5 h-5 text-brand-orange" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-bold text-lg">
+                <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                  <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[32px] border border-gray-100 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-12 bg-brand-orange/5 rounded-full -mr-6 -mt-6 blur-2xl" />
+                    <div className="flex items-center gap-5 relative z-10">
+                      <div className="w-16 h-16 rounded-[24px] bg-white text-brand-orange border-2 border-brand-orange/10 flex items-center justify-center font-black text-2xl shadow-xl shadow-brand-orange/10 transform transition-transform group-hover:rotate-6">
                         {selectedUser.full_name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Enviando para</p>
-                        <p className="font-semibold text-black">{selectedUser.full_name}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Enviando para</p>
+                        <p className="text-xl font-black text-black tracking-tight leading-none mb-1">{selectedUser.full_name}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">{selectedUser.grade}</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedUser(null)}
-                      className="text-sm text-brand-orange hover:underline"
+                      className="bg-white text-gray-400 hover:text-brand-orange p-4 rounded-2xl border border-gray-100 hover:border-brand-orange transition-all font-black text-[10px] uppercase tracking-widest relative z-10"
                     >
                       Trocar
                     </button>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Valor (Unireais)</label>
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-2">Valor da Transferência</label>
                     <div className="relative">
                       <Input
                         type="number"
                         min="1"
                         max={profile?.balance || 0}
                         placeholder="0"
-                        className="text-3xl font-bold h-20 pl-6"
+                        className="text-5xl font-black h-28 pl-8 pr-20 rounded-[32px] bg-gray-50 border-transparent focus:bg-white focus:border-brand-orange focus:ring-0 transition-all placeholder:text-gray-200"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         required
                       />
-                      <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl uppercase">
+                      <span className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-300 font-black text-2xl uppercase tracking-widest select-none">
                         UR
                       </span>
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full h-14 text-lg" disabled={loading}>
-                    {loading ? 'Enviando...' : `Enviar ${amount || 0} UR`}
+                  <Button 
+                    type="submit" 
+                    className="w-full h-20 rounded-[32px] text-xl font-black shadow-2xl shadow-brand-orange/20 uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all" 
+                    disabled={loading || !amount || Number(amount) <= 0}
+                  >
+                    {loading ? 'Processando Envio...' : `Enviar Unireais Agora`}
                   </Button>
                 </div>
               )}

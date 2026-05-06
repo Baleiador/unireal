@@ -81,81 +81,103 @@ export function MyQRCode() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto printable-area">
-      <header className="no-print">
-        <h1 className="text-3xl font-bold text-black mb-2 flex items-center gap-3">
-          <QrCode className="w-8 h-8 text-brand-orange" />
-          Meu QR Code
-        </h1>
-        <p className="text-gray-500">Mostre este código para receber transferências rapidamente.</p>
+    <div className="space-y-12 max-w-4xl mx-auto pb-10 printable-area">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 no-print">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
+              <QrCode className="w-6 h-6" />
+            </div>
+            <h1 className="text-4xl font-black text-black tracking-tight border-b-4 border-brand-orange pb-2">Receber Moedas</h1>
+          </div>
+          <p className="text-gray-500 font-medium text-lg">Seu canal direto para recargas e pagamentos.</p>
+        </div>
       </header>
 
-      <Card className="overflow-hidden border-none shadow-2xl">
-        <div className="bg-brand-orange p-6 text-white text-center no-print">
-          <h2 className="text-xl font-bold capitalize">{profile.full_name}</h2>
-          <p className="text-white/80 text-sm">{profile.grade || 'Aluno'}</p>
+      <Card className="overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] bg-white max-w-xl mx-auto rounded-[40px]">
+        <div className="bg-gray-900 p-10 text-white text-center no-print relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-20 bg-brand-orange/10 rounded-full -mr-10 -mt-10 blur-2xl" />
+          <h2 className="text-2xl font-black capitalize tracking-tight relative z-10">{profile.full_name}</h2>
+          <p className="text-brand-orange font-black text-[10px] uppercase tracking-[0.3em] mt-1 relative z-10">{profile.grade || 'Estudante'}</p>
         </div>
         
         <CardContent className="p-12 flex flex-col items-center justify-center bg-white">
-          <div className="w-full max-w-xs mb-8 no-print">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Valor Fixo da Cobrança (Opcional)</label>
+          <div className="w-full max-w-xs mb-10 no-print">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest text-center mb-4">Sugerir Valor (Opcional)</label>
             <div className="relative">
               <Input
                 type="number"
-                min="0"
-                placeholder="Exemplo: 50"
-                className="text-xl font-bold h-14 pl-10 bg-gray-50 border-gray-200"
+                placeholder="Valor fixo..."
+                className="h-16 rounded-2xl border-gray-100 bg-gray-50 focus:bg-white focus:border-brand-orange transition-all text-center text-xl font-black pr-12"
                 value={chargeAmount}
                 onChange={(e) => setChargeAmount(e.target.value)}
               />
-              <Coins className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold uppercase text-sm">
-                UR
-              </span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 font-black text-xs uppercase">UR</span>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">Deixe em branco para que o pagador decida o valor.</p>
           </div>
 
-          <div ref={qrRef} className="p-4 bg-white border-8 border-brand-orange/10 rounded-3xl shadow-inner mb-8">
+          <div 
+            ref={qrRef} 
+            className="p-10 bg-white rounded-[40px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1),0_20px_40px_rgba(0,0,0,0.05)] mb-8 transition-transform hover:scale-[1.02] cursor-pointer"
+            onClick={handleDownload}
+          >
             <QRCodeSVG 
-              value={transferUrl} 
-              size={256}
+              value={transferUrl}
+              size={280}
               level="H"
-              includeMargin={false}
+              includeMargin={true}
+              imageSettings={{
+                src: "/apple-touch-icon.png",
+                x: undefined,
+                y: undefined,
+                height: 48,
+                width: 48,
+                excavate: true,
+              }}
             />
           </div>
           
-          <div className="text-center mb-8">
-            <p className="text-gray-400 text-sm font-medium uppercase tracking-widest mb-1">Escaneie para pagar</p>
-            <p className="text-2xl font-black text-black">
-              {chargeAmount && Number(chargeAmount) > 0 ? `${chargeAmount} UR` : 'UNIREAL'}
+          <div className="text-center mb-10">
+            <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Escaneie para pagar</p>
+            <p className="text-3xl font-black text-black tracking-tight">
+              {chargeAmount && Number(chargeAmount) > 0 ? `${chargeAmount} UR` : 'UNIREAIS'}
             </p>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-4 no-print">
-            <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2">
-              <Printer className="w-4 h-4" />
-              Imprimir
+          <div className="grid grid-cols-2 gap-4 w-full no-print">
+            <Button 
+              variant="outline" 
+              className="h-14 rounded-2xl border-gray-100 hover:bg-gray-50 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-gray-500"
+              onClick={handleDownload}
+            >
+              <Download className="w-4 h-4" /> Baixar PNG
             </Button>
-            <Button onClick={handleDownload} variant="outline" className="flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Baixar PNG
+            <Button 
+              variant="outline"
+              className="h-14 rounded-2xl border-gray-100 hover:bg-gray-50 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-gray-500"
+              onClick={handleShare}
+            >
+              <Share2 className="w-4 h-4" /> Compartilhar
             </Button>
-            <Button onClick={handleShare} className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />
-              Compartilhar
+            <Button 
+              className="col-span-2 h-14 rounded-2xl bg-brand-orange hover:bg-brand-orange/90 text-white flex items-center gap-2 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand-orange/20"
+              onClick={handlePrint}
+            >
+              <Printer className="w-4 h-4" /> Imprimir Etiqueta
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="bg-orange-50 p-6 rounded-2xl border border-brand-orange/20 no-print">
-        <h3 className="font-bold text-brand-orange mb-2">Como funciona?</h3>
-        <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-          <li>Imprima este código e cole no seu caderno ou crachá.</li>
-          <li>Outros alunos podem escanear com a câmera do celular.</li>
-          <li>O sistema abrirá automaticamente a tela de transferência com seu nome selecionado.</li>
-        </ul>
+      <div className="max-w-xl mx-auto p-10 rounded-[40px] bg-brand-orange/5 border border-brand-orange/10 no-print flex flex-col items-center text-center">
+        <div className="w-16 h-16 rounded-[24px] bg-brand-orange/20 flex items-center justify-center text-brand-orange mb-6">
+          <Coins className="w-8 h-8" />
+        </div>
+        <h3 className="font-black text-xl text-black tracking-tight mb-4 uppercase italic">Dica de Empreendedor!</h3>
+        <p className="text-gray-500 font-medium leading-relaxed max-w-sm">
+          Este código é seu identificador único. <br/>
+          <span className="text-brand-orange font-bold italic underline decoration-brand-orange/20 underline-offset-4">Imprima e cole na sua barraca</span> para acelerar suas vendas e receber pagamentos na hora!
+        </p>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

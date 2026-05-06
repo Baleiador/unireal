@@ -15,73 +15,104 @@ export function Layout() {
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Meu QR Code', path: '/my-qr', icon: QrCode },
     { name: 'Investimentos', path: '/investments', icon: TrendingUp },
     { name: 'Ranking', path: '/ranking', icon: Trophy },
     { name: 'Transferir', path: '/transfer', icon: Send },
+    { name: 'Meu QR', path: '/my-qr', icon: QrCode },
   ];
 
   if (profile?.is_admin) {
-    navItems.push({ name: 'Gerar Moedas', path: '/admin', icon: PlusCircle });
+    navItems.push({ name: 'Professor', path: '/admin', icon: PlusCircle });
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-brand-gray">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-100">
-          <Logo />
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-brand-orange/10 text-brand-orange' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-black'
-                }`}
-              >
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-brand-orange' : 'text-gray-400'}`} />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 md:pb-10">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Logo />
+            <nav className="hidden lg:flex items-center gap-1">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${
+                      isActive 
+                        ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/30 scale-105' 
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-black'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
 
-        <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-brand-orange/20 flex items-center justify-center text-brand-orange font-bold">
-              {profile?.full_name?.charAt(0).toUpperCase() || <User className="w-5 h-5" />}
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col items-end mr-2">
+              <span className="text-xs font-black text-gray-400 tracking-widest uppercase">
+                {profile?.is_admin ? 'Professor' : 'Saldo Atual'}
+              </span>
+              <span className="text-sm font-black text-black">
+                {profile?.is_admin ? 'Controle Total' : `${(profile?.balance || 0).toLocaleString()} UR`}
+              </span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-black truncate flex items-center gap-1">
-                {profile?.full_name || 'Aluno'}
-                {profile?.is_admin && <span className="bg-brand-orange text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold">Prof</span>}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{profile?.is_admin ? 'Moedas Infinitas' : `${profile?.balance || 0} Unireais`}</p>
+            
+            <div className="group relative">
+              <button className="w-10 h-10 rounded-full bg-brand-orange/10 text-brand-orange flex items-center justify-center font-black border-2 border-brand-orange/20 hover:border-brand-orange transition-all">
+                {profile?.full_name?.charAt(0).toUpperCase() || <User className="w-5 h-5" />}
+              </button>
+              
+              <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 min-w-[200px]">
+                  <div className="p-3 border-b border-gray-50 mb-1">
+                    <p className="text-sm font-black text-black truncate">{profile?.full_name}</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">{profile?.is_admin ? 'Administrador' : 'Estudante'}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-4 py-3 w-full rounded-xl font-bold text-red-500 hover:bg-red-50 transition-colors text-sm"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair da Conta
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            Sair
-          </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto">
-        <div className="max-w-5xl mx-auto">
-          <Outlet />
-        </div>
+      {/* Main Content with floating behavior */}
+      <main className="max-w-7xl mx-auto px-4 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Outlet />
       </main>
+
+      {/* Mobile Bottom Bar */}
+      <nav className="lg:hidden fixed bottom-6 left-4 right-4 z-50 bg-white/90 backdrop-blur-lg border border-gray-100 shadow-2xl rounded-3xl p-2 flex items-center justify-around">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+                isActive 
+                  ? 'bg-brand-orange text-white scale-110 shadow-lg shadow-brand-orange/30' 
+                  : 'text-gray-400'
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="text-[8px] font-black uppercase tracking-tighter">{item.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

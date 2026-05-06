@@ -331,37 +331,64 @@ CREATE POLICY "Users can update their own investments"
   const chartData = getProductChartData();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-12 pb-10">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-            <Briefcase className="w-10 h-10 text-brand-orange" />
-            Mercado de Títulos
-          </h1>
-          <p className="text-gray-500 mt-1 font-medium">Compre ativos e gerencie sua carteira de investimentos.</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center text-brand-orange">
+              <Briefcase className="w-6 h-6" />
+            </div>
+            <h1 className="text-4xl font-black text-black tracking-tight underline decoration-brand-orange/30">Crescendo Seu Patrimônio</h1>
+          </div>
+          <p className="text-gray-500 font-medium text-lg">Multiplique seus Unireais com ativos financeiros.</p>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-2xl">
-          <button 
-            onClick={() => setActiveTab('market')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'market' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            <ShoppingCart className="w-4 h-4" /> MERCADO
-          </button>
-          <button 
-            onClick={() => setActiveTab('portfolio')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'portfolio' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            <Wallet className="w-4 h-4" /> MINHA CARTEIRA
-            {activeInvestments.length > 0 && <span className="w-5 h-5 bg-brand-orange text-white text-[10px] rounded-full flex items-center justify-center animate-pulse">{activeInvestments.length}</span>}
-          </button>
-          <button 
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeTab === 'history' ? 'bg-white text-brand-orange shadow-lg' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            <History className="w-4 h-4" /> HISTÓRICO
-          </button>
-        </div>
+
+        {!profile?.is_admin && (
+           <div className="bg-white/80 backdrop-blur-sm p-4 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Seu Saldo</p>
+              <p className="text-xl font-black text-gray-900">{profile?.balance?.toLocaleString()} UR</p>
+            </div>
+          </div>
+        )}
       </header>
+
+      {/* Tabs */}
+      <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[32px] border border-gray-100 w-fit shadow-sm">
+        <button
+          onClick={() => setActiveTab('market')}
+          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
+            activeTab === 'market' 
+              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+              : 'text-gray-400 hover:text-black'
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4" />
+          Mercado
+        </button>
+        <button
+          onClick={() => setActiveTab('portfolio')}
+          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
+            activeTab === 'portfolio' 
+              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+              : 'text-gray-400 hover:text-black'
+          }`}
+        >
+          <Wallet className="w-4 h-4" />
+          Carteira
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-3 px-8 py-4 rounded-[26px] text-xs font-black uppercase tracking-widest transition-all ${
+            activeTab === 'history' 
+              ? 'bg-black text-white shadow-xl translate-y-[-2px]' 
+              : 'text-gray-400 hover:text-black'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          Histórico
+        </button>
+      </div>
 
       {activeTab === 'market' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
