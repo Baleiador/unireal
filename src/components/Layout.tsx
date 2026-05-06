@@ -176,21 +176,32 @@ export function Layout() {
       </main>
 
       {/* Mobile Bottom Bar */}
-      <nav className="lg:hidden fixed bottom-6 left-4 right-4 z-50 bg-white/90 backdrop-blur-lg border border-gray-100 shadow-2xl rounded-3xl p-2 flex items-center justify-around">
+      <nav className="lg:hidden fixed bottom-4 left-4 right-4 z-50 bg-white/95 backdrop-blur-xl border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[32px] p-2 flex items-center justify-between">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+              className={`flex flex-col items-center justify-center flex-1 py-3 px-1 rounded-2xl transition-all duration-300 relative ${
                 isActive 
-                  ? 'bg-brand-orange text-white scale-110 shadow-lg shadow-brand-orange/30' 
-                  : 'text-gray-400'
+                  ? 'text-brand-orange' 
+                  : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase tracking-tighter">{item.name}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 bg-brand-orange/10 rounded-2xl"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <item.icon className={`w-5 h-5 relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
+              <span className={`text-[9px] font-black uppercase tracking-tight mt-1 relative z-10 transition-all duration-300 ${
+                isActive ? 'opacity-100' : 'opacity-70 scale-95'
+              }`}>
+                {item.name === 'Investimentos' ? 'Invest.' : item.name === 'Transferir' ? 'Enviar' : item.name}
+              </span>
             </Link>
           );
         })}
