@@ -186,17 +186,21 @@ export function Dashboard() {
     // Generate 15 points (every 2 minutes for 30 mins)
     for (let i = 0; i <= 15; i++) {
       const timeOffset = (15 - i) * 120; // Seconds back
-      const virtualSeconds = (now / 1000) - timeOffset;
+      const date = new Date(now - (timeOffset * 1000));
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      
       const point: any = {
-        time: i === 15 ? 'Agora' : `-${(15 - i) * 2}m`,
+        time: `${hours}:${minutes}`,
+        timestamp: date.getTime(),
       };
 
       investments.forEach(inv => {
         const volatility = getVolatilityByType(inv.type);
         const seed = inv.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        // Base value for the point (simplified normalized to 100 on buy date, or just oscillating around 100 for visual)
-        const wave = getOrganicOscillation(virtualSeconds, seed, volatility || 0.02);
-        point[inv.id] = Number((100 * (1 + wave)).toFixed(2));
+        const wave = getOrganicOscillation(date.getTime() / 1000, seed, volatility || 0.02);
+        // We use the type as the key for better tooltip display
+        point[inv.type] = Number((100 * (1 + wave)).toFixed(2));
       });
       
       data.push(point);
@@ -413,20 +417,83 @@ export function Dashboard() {
               Evolução dos Investimentos
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-8">
-            <div className="h-[300px]">
+          <CardContent className="p-4 md:p-8">
+            <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorWave" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F27D26" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#F27D26" stopOpacity={0}/>
-                    </linearGradient>
+                    {Array.from(new Set(investments.map(i => i.type))).map((type) => {
+                      const safeId = type.replace(/[^a-z0-9]/gi, '-');
+                      return (
+                        <linearGradient key={`grad-${type}`} id={`color-${safeId}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={getInvestmentColor(type)} stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor={getInvestmentColor(type)} stopOpacity={0}/>
+                        </linearGradient>
+                      );
+                    })}
                   </defs>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="time" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9ca3af' }}
+                    dy={10}
                   />
-                  <Area type="monotone" dataKey={investments[0]?.id || 'valor'} stroke="#F27D26" strokeWidth={4} fillOpacity={1} fill="url(#colorWave)" />
+                  <YAxis 
+                    hide
+                    domain={['dataMin - 10', 'dataMax + 10']}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '20px', 
+                      border: 'none', 
+                      boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                      padding: '12px 16px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(8px)'
+                    }}
+                    itemStyle={{ fontWeight: '900', textTransform: 'uppercase', fontSize: '10px' }}
+                    labelStyle={{ fontWeight: '900', color: '#000', marginBottom: '4px', fontSize: '12px' }}
+                  />
+                  {/* Distinct investments by type */}
+                  {Array.from(new Set(investments.map(i => i.type))).map((type) => {
+                    const safeId = type.replace(/[^a-z0-9]/gi, '-');
+                    return (
+                      <Area 
+                        key={type}
+                        type="monotone" 
+                        dataKey={type} 
+                        name={type}
+                        stroke={getInvestmentColor(type)} 
+                        strokeWidth={3} 
+                        fillOpacity={1} 
+                        fill={`url(#color-${safeId})`}
+                        animationDuration={1500}
+                        connectNulls
+                      />
+                    );
+                  })}
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    iconType="circle"
+                    content={(props) => {
+                      const { payload } = props;
+                      return (
+                        <div className="flex flex-wrap justify-end gap-x-4 gap-y-2 mb-6">
+                          {payload?.map((entry: any, index: number) => (
+                            <div key={`item-${index}`} className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                              <span className="text-[9px] font-black text-gray-400 tracking-tight uppercase whitespace-nowrap">
+                                {entry.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
