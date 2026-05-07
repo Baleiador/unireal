@@ -142,9 +142,14 @@ export function Transfer() {
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = Number(amount);
+    const amountNum = Math.abs(Number(amount));
     if (!selectedUser || !amount || isNaN(amountNum) || amountNum <= 0) {
       setError('Por favor, selecione um usuário e insira um valor válido (maior que zero).');
+      return;
+    }
+
+    if (selectedUser.id === profile?.id) {
+      setError('Você não pode transferir para si mesmo.');
       return;
     }
 
@@ -157,16 +162,26 @@ export function Transfer() {
     setError(null);
 
     try {
+      // CRITICAL: Fetch fresh balance from DB right before update to close the window for race conditions
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', profile?.id)
+        .single();
+        
+      if (fetchError || !currentProfile) throw new Error("Erro ao consultar saldo atual.");
+      
+      const currentBalance = currentProfile.balance || 0;
+      if (amountNum > currentBalance) throw new Error("Saldo insuficiente (atualizado).");
+
       // Security check: final validation of positive amount before DB operations
       const finalAmount = Math.abs(amountNum);
       if (finalAmount <= 0) throw new Error("Valor inválido");
-      // In a real app, this should be a stored procedure (RPC) in Supabase
-      // to ensure transaction atomicity. For this demo, we'll do it sequentially.
       
       // 1. Deduct from sender
       const { error: senderError } = await supabase
         .from('profiles')
-        .update({ balance: (profile?.balance || 0) - finalAmount })
+        .update({ balance: currentBalance - finalAmount })
         .eq('id', profile?.id)
         .gte('balance', finalAmount); // SQL level protection: balance must be >= amount
 

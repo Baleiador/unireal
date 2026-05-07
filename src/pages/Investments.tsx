@@ -36,6 +36,7 @@ export function Investments() {
   const [selectedProduct, setSelectedProduct] = useState<string>('tesouro_selic');
   const [quantity, setQuantity] = useState('1');
   const [investing, setInvesting] = useState(false);
+  const [redeemingIds, setRedeemingIds] = useState<Set<string>>(new Set());
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'market' | 'portfolio' | 'history'>('market');
@@ -169,19 +170,23 @@ export function Investments() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    // Re-check cooldown just before investing to be safe
-    await checkCooldown(selectedProduct);
-    if (remainingCooldown > 0) {
-      setErrorMsg(`Aguarde o período de resfriamento (${remainingCooldown}s) para comprar este título novamente.`);
-      setInvesting(false);
-      return;
-    }
-
     try {
+      // CRITICAL: Fetch fresh balance from DB right before update to close the window for race conditions
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', profile.id)
+        .single();
+        
+      if (fetchError || !currentProfile) throw new Error("Erro ao consultar saldo atual.");
+      
+      const currentBalance = currentProfile.balance || 0;
+      if (totalCost > currentBalance) throw new Error("Saldo insuficiente (atualizado).");
+
       // 1. Update balance with SQL-level safety check
       const { error: balanceError } = await supabase
         .from('profiles')
-        .update({ balance: (profile.balance || 0) - totalCost })
+        .update({ balance: currentBalance - totalCost })
         .eq('id', profile.id)
         .gte('balance', totalCost); // Ensure balance is enough
 
@@ -220,36 +225,68 @@ export function Investments() {
   };
 
   const handleRedeem = async (inv: Investment) => {
-    if (inv.redeemed_at) return;
+    if (inv.redeemed_at || redeemingIds.has(inv.id)) return;
+    
+    setRedeemingIds(prev => new Set(prev).add(inv.id));
+    
     try {
       const currentVal = calculateCurrentAmount(inv);
-      
       const roundedCurrentVal = Math.round(currentVal);
       
-      const { error: updateInvError } = await supabase
+      // CRITICAL: Only update if it's not redeemed yet (database-level check)
+      const { data: updateData, error: updateInvError, count } = await supabase
         .from('investments')
         .update({ 
           redeemed_at: new Date().toISOString(),
           redeemed_amount: roundedCurrentVal
         })
-        .eq('id', inv.id);
+        .eq('id', inv.id)
+        .is('redeemed_at', null) // Atomic check: prevent double-redemption
+        .select();
         
       if (updateInvError) throw updateInvError;
       
-      const { data: userData, error: userError } = await supabase.from('profiles').select('balance').eq('id', profile?.id).single();
+      // If no rows were updated, it means someone else (or another tab) already redeemed it
+      if (!updateData || updateData.length === 0) {
+        throw new Error("Este investimento já foi resgatado.");
+      }
+      
+      // Now update user balance
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', profile?.id)
+        .single();
+        
       if (userError) throw userError;
       
-      const newBalance = Math.round((userData?.balance || 0) + currentVal);
+      const newBalance = Math.round((userData?.balance || 0) + roundedCurrentVal);
       
-      const { error: profileUpdateError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', profile?.id);
-      if (profileUpdateError) throw profileUpdateError;
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('id', profile?.id);
+        
+      if (profileUpdateError) {
+        // This is a dangerous state: investment marked as redeemed but balance not updated.
+        // In a real app, use an RPC/Transaction. 
+        // For now, we log it and try to alert the user.
+        console.error("Critical inconsistency: Investment redeemed but balance update failed.", profileUpdateError);
+        throw new Error("Resgate processado, mas houve um erro ao atualizar seu saldo. Contate o administrador.");
+      }
       
       await fetchInvestments();
       await refreshProfile();
       alert(`Você vendeu seus títulos por ${roundedCurrentVal} UR!`);
     } catch(err: any) {
       console.error(err);
-      alert(`Erro ao vender: ${err?.message || 'Desconhecido'}`);
+      alert(`Erro no resgate: ${err?.message || 'Erro desconhecido'}`);
+    } finally {
+      setRedeemingIds(prev => {
+        const next = new Set(prev);
+        next.delete(inv.id);
+        return next;
+      });
     }
   };
 
@@ -607,8 +644,9 @@ CREATE POLICY "Users can update their own investments"
                         <Button 
                           className="w-full h-12 rounded-xl font-bold uppercase tracking-widest text-xs"
                           onClick={() => handleRedeem(inv)}
+                          disabled={redeemingIds.has(inv.id)}
                         >
-                          Vender Títulos
+                          {redeemingIds.has(inv.id) ? 'Processando...' : 'Vender Títulos'}
                         </Button>
                       </CardContent>
                     </Card>
