@@ -24,6 +24,9 @@ type LogEntry = {
   description: string;
   date: string;
   change: 'positive' | 'negative' | 'neutral';
+  studentName?: string;
+  studentGrade?: string;
+  otherParticipantName?: string;
   metadata?: {
     profit?: number;
     profitPercent?: number;
@@ -67,6 +70,8 @@ export function Admin() {
   });
   const [logDateEnd, setLogDateEnd] = useState<string>(new Date().toISOString().split('T')[0]);
   const [logTypeFilter, setLogTypeFilter] = useState<'all' | 'mint' | 'transfer' | 'investment' | 'redemption'>('all');
+  
+  const [logGradeFilter, setLogGradeFilter] = useState<'all' | string>('all');
   
   // Settings state
   const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'announcements' | 'logs'>('users');
@@ -281,8 +286,8 @@ Deseja continuar?`)) return;
         .from('transactions')
         .select(`
           *,
-          sender:profiles!transactions_sender_id_fkey(full_name),
-          receiver:profiles!transactions_receiver_id_fkey(full_name)
+          sender:profiles!transactions_sender_id_fkey(full_name, grade),
+          receiver:profiles!transactions_receiver_id_fkey(full_name, grade)
         `)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
@@ -292,7 +297,7 @@ Deseja continuar?`)) return;
         .from('investments')
         .select(`
           *,
-          user:profiles!investments_user_id_fkey(full_name)
+          user:profiles!investments_user_id_fkey(full_name, grade)
         `)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
@@ -311,22 +316,42 @@ Deseja continuar?`)) return;
         const isMint = (tx.sender && tx.sender.full_name === 'Sistema') || !tx.sender_id;
         const type = isMint ? 'mint' : 'transfer';
         
+        const senderName = tx.sender?.full_name || 'Sistema';
+        const receiverName = tx.receiver?.full_name || 'Desconhecido';
+        const senderGrade = tx.sender?.grade;
+        const receiverGrade = tx.receiver?.grade;
+        
         if (logTypeFilter === 'all' || logTypeFilter === type) {
-          logs.push({
-            id: tx.id,
-            type: type,
-            amount: tx.amount,
-            date: tx.created_at,
-            change: isMint ? 'positive' : 'neutral',
-            description: isMint 
-              ? `Sistema premiou ${tx.receiver?.full_name}`
-              : `${tx.sender?.full_name} → ${tx.receiver?.full_name}`,
-            metadata: { targetName: tx.receiver?.full_name }
-          });
+          const matchesGrade = logGradeFilter === 'all' || 
+                             senderGrade === logGradeFilter || 
+                             receiverGrade === logGradeFilter;
+                             
+          if (matchesGrade) {
+            logs.push({
+              id: tx.id,
+              type: type,
+              amount: tx.amount,
+              date: tx.created_at,
+              change: isMint ? 'positive' : 'neutral',
+              studentName: receiverName,
+              studentGrade: receiverGrade || senderGrade || undefined,
+              otherParticipantName: senderName,
+              description: isMint 
+                ? `Sistema premiou ${receiverName}`
+                : `${senderName} → ${receiverName}`,
+              metadata: { targetName: receiverName }
+            });
+          }
         }
       });
 
       invs?.forEach(inv => {
+        const studentName = inv.user?.full_name || 'Desconhecido';
+        const studentGrade = inv.user?.grade;
+        const matchesGrade = logGradeFilter === 'all' || studentGrade === logGradeFilter;
+        
+        if (!matchesGrade) return;
+
         // Purchase entry
         if (logTypeFilter === 'all' || logTypeFilter === 'investment') {
           logs.push({
@@ -335,14 +360,15 @@ Deseja continuar?`)) return;
             amount: inv.amount,
             date: inv.created_at,
             change: 'negative',
-            description: `${inv.user?.full_name} investiu em ${inv.type}`,
+            studentName: studentName,
+            studentGrade: studentGrade || undefined,
+            description: `${studentName} investiu em ${inv.type}`,
             metadata: { productType: inv.type }
           });
         }
 
         // Redemption entry
         if (inv.redeemed_at && inv.redeemed_amount) {
-          // Check if redemption is within range
           const redDate = new Date(inv.redeemed_at);
           if (redDate >= start && redDate <= end) {
             if (logTypeFilter === 'all' || logTypeFilter === 'redemption') {
@@ -352,7 +378,9 @@ Deseja continuar?`)) return;
                 amount: inv.redeemed_amount,
                 date: inv.redeemed_at,
                 change: 'positive',
-                description: `${inv.user?.full_name} resgatou ${inv.type}`,
+                studentName: studentName,
+                studentGrade: studentGrade || undefined,
+                description: `${studentName} resgatou ${inv.type}`,
                 metadata: { 
                   productType: inv.type,
                   profit: inv.redeemed_amount - inv.amount,
@@ -857,6 +885,16 @@ Deseja continuar?`)) return;
                     />
                   </div>
                   <select 
+                    value={logGradeFilter}
+                    onChange={(e) => setLogGradeFilter(e.target.value)}
+                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
+                  >
+                    <option value="all">Todas as Turmas</option>
+                    {uniqueGrades.map(grade => (
+                      <option key={grade} value={grade}>{grade}</option>
+                    ))}
+                  </select>
+                  <select 
                     value={logTypeFilter}
                     onChange={(e) => setLogTypeFilter(e.target.value as any)}
                     className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
@@ -919,6 +957,7 @@ Deseja continuar?`)) return;
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                         <th className="px-8 py-4">Data/Hora</th>
+                        <th className="px-8 py-4">Aluno / Turma</th>
                         <th className="px-8 py-4">Tipo</th>
                         <th className="px-8 py-4">Descrição</th>
                         <th className="px-8 py-4 text-right">Valor</th>
@@ -926,7 +965,15 @@ Deseja continuar?`)) return;
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {globalLogs
-                        .filter(log => log.description.toLowerCase().includes(logSearchQuery.toLowerCase()))
+                        .filter(log => {
+                          const query = logSearchQuery.toLowerCase();
+                          return (
+                            log.description.toLowerCase().includes(query) ||
+                            (log.studentName || '').toLowerCase().includes(query) ||
+                            (log.otherParticipantName || '').toLowerCase().includes(query) ||
+                            (log.studentGrade || '').toLowerCase().includes(query)
+                          );
+                        })
                         .map((log) => (
                         <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-8 py-5">
@@ -937,7 +984,16 @@ Deseja continuar?`)) return;
                               <span className="text-[10px] font-medium text-gray-400">
                                 {new Date(log.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               </span>
-                              <span className="text-[8px] font-mono text-gray-300 mt-1 uppercase">ID: {log.id.split('-')[0]}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-black text-gray-900 truncate max-w-[150px]">
+                                {log.studentName}
+                              </span>
+                              <span className="text-[10px] font-bold text-brand-orange uppercase">
+                                {log.studentGrade || '-'}
+                              </span>
                             </div>
                           </td>
                           <td className="px-8 py-5">
