@@ -64,63 +64,110 @@ export default function Profile() {
     setMessage(null);
 
     try {
-      const updateData = {
+      const updateDataWithUnit = {
         full_name: fullName,
         grade: grade,
         unit: unit,
         avatar_url: avatarUrl,
       };
 
-      // Also update user metadata in Supabase Auth as secondary storage
-      await supabase.auth.updateUser({
-        data: {
-          full_name: fullName,
-          grade: grade,
-          unit: unit,
-          avatar_url: avatarUrl,
-        }
-      }).catch(() => {});
+      const updateDataWithoutUnit = {
+        full_name: fullName,
+        grade: grade,
+        avatar_url: avatarUrl,
+      };
 
-      // Try update profile table
+      // 1. Always update user metadata in Supabase Auth as reliable secondary storage
+      await supabase.auth.updateUser({
+        data: updateDataWithUnit
+      }).catch((err) => console.warn('Auth metadata update:', err));
+
+      // 2. Try update profile table with 'unit'
       let { error } = await supabase
         .from('profiles')
-        .update(updateData)
+        .update(updateDataWithUnit)
         .eq('id', profile.id);
 
-      // If update fails or row doesn't exist, try upsert
-      if (error) {
+      let unitColumnMissing = false;
+
+      // Check if error is due to missing 'unit' column in Supabase schema
+      const isUnitError = (errObj: any) => errObj?.message?.toLowerCase().includes('unit') || errObj?.message?.toLowerCase().includes('schema cache');
+
+      if (error && isUnitError(error)) {
+        unitColumnMissing = true;
+        // Retry update without 'unit'
+        const retryRes = await supabase
+          .from('profiles')
+          .update(updateDataWithoutUnit)
+          .eq('id', profile.id);
+        
+        error = retryRes.error;
+
+        // If row doesn't exist, try upsert without unit
+        if (error) {
+          const upsertRes = await supabase
+            .from('profiles')
+            .upsert({
+              id: profile.id,
+              ...updateDataWithoutUnit,
+              balance: profile.balance ?? 0,
+              is_admin: profile.is_admin ?? false,
+            }, { onConflict: 'id' });
+          error = upsertRes.error;
+        }
+      } else if (error) {
+        // Try upsert with unit if update failed for missing row
         const upsertRes = await supabase
           .from('profiles')
           .upsert({
             id: profile.id,
-            ...updateData,
+            ...updateDataWithUnit,
             balance: profile.balance ?? 0,
             is_admin: profile.is_admin ?? false,
           }, { onConflict: 'id' });
-        error = upsertRes.error;
+        
+        if (upsertRes.error && isUnitError(upsertRes.error)) {
+          unitColumnMissing = true;
+          const upsertNoUnit = await supabase
+            .from('profiles')
+            .upsert({
+              id: profile.id,
+              ...updateDataWithoutUnit,
+              balance: profile.balance ?? 0,
+              is_admin: profile.is_admin ?? false,
+            }, { onConflict: 'id' });
+          error = upsertNoUnit.error;
+        } else {
+          error = upsertRes.error;
+        }
       }
+
+      await refreshProfile();
 
       if (error) {
         setMessage({ 
           type: 'error', 
-          text: `Erro ao salvar no Supabase (${error.message}). Execute o comando SQL no Supabase para liberar permissão.` 
+          text: `Erro ao salvar no Supabase (${error.message}).` 
+        });
+      } else if (unitColumnMissing) {
+        setMessage({ 
+          type: 'success', 
+          text: 'Perfil atualizado com sucesso! Nota: Para salvar a unidade no banco principal, execute no SQL Editor do Supabase: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS unit text DEFAULT \'Ribeirão\';' 
         });
       } else {
         setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
       }
 
-      await refreshProfile();
-      setTimeout(() => setMessage(null), 4000);
+      setTimeout(() => setMessage(null), 7000);
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      const errorMessage = error.message || 'Erro de permissão RLS no Supabase';
+      const errorMessage = error.message || 'Erro de conexão ou permissão RLS';
       
-      // Still update local profile state so UI is updated for current session
       await refreshProfile();
 
       setMessage({ 
         type: 'error', 
-        text: `Aviso: As alterações locais foram salvas na sessão, mas o Supabase retornou um erro (${errorMessage}). Verifique as políticas de RLS no Supabase.` 
+        text: `Aviso: Tente novamente ou verifique as permissões do Supabase (${errorMessage}).` 
       });
     } finally {
       setIsLoading(false);

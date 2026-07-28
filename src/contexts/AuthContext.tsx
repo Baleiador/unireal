@@ -45,7 +45,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('Error fetching profile:', error.message || error);
       } else if (data) {
-        setProfile(data);
+        const { data: { user: currentUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+        const meta = currentUser?.user_metadata || {};
+        setProfile({
+          ...data,
+          full_name: data.full_name || meta.full_name || currentUser?.email?.split('@')[0] || 'Usuário',
+          grade: data.grade || meta.grade || null,
+          unit: data.unit || meta.unit || 'Ribeirão',
+          avatar_url: data.avatar_url || meta.avatar_url || null,
+        });
       } else {
         // Profile row doesn't exist yet, try to create one from user metadata
         const { data: { user } } = await supabase.auth.getUser();
