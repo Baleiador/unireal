@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { User, GraduationCap, Save, CheckCircle2, AlertCircle, Loader2, RefreshCw, Palette } from 'lucide-react';
+import { User, GraduationCap, Save, CheckCircle2, AlertCircle, Loader2, RefreshCw, Palette, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const AVATAR_STYLES = [
@@ -19,6 +19,7 @@ export default function Profile() {
   const { profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState('');
   const [grade, setGrade] = useState('');
+  const [unit, setUnit] = useState('Ribeirão');
   const [avatarSeed, setAvatarSeed] = useState('');
   const [avatarStyle, setAvatarStyle] = useState('avataaars');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function Profile() {
     if (profile) {
       setFullName(profile.full_name || '');
       setGrade(profile.grade || '');
+      setUnit(profile.unit || 'Ribeirão');
       
       // Extract seed and style from avatar_url if exists
       // Format expected: https://api.dicebear.com/7.x/{style}/svg?seed={seed}
@@ -64,6 +66,7 @@ export default function Profile() {
       const updateData: any = {
         full_name: fullName,
         grade: grade,
+        unit: unit,
         avatar_url: avatarUrl,
       };
 
@@ -176,6 +179,21 @@ export default function Profile() {
                     className="pl-12 h-14 bg-gray-50 border-transparent focus:bg-white"
                     required
                   />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Unidade Escolar</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="w-full pl-12 pr-4 h-14 bg-gray-50 border-transparent focus:bg-white rounded-2xl font-bold text-gray-800 border focus:border-brand-orange outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Ribeirão">Unidade Ribeirão</option>
+                    <option value="Palmares">Unidade Palmares</option>
+                  </select>
                 </div>
               </div>
 

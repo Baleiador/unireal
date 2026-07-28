@@ -12,6 +12,7 @@ type Profile = {
   id: string;
   full_name: string;
   grade: string | null;
+  unit: string | null;
   avatar_url: string | null;
 };
 
@@ -47,11 +48,18 @@ export function Transfer() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, grade, avatar_url')
+        .select('id, full_name, grade, unit, avatar_url')
         .eq('id', userId)
         .single();
       
       if (!error && data) {
+        const targetUnit = data.unit || 'Ribeirão';
+        const myUnit = profile?.unit || 'Ribeirão';
+        if (targetUnit !== myUnit) {
+          setError(`Não é possível realizar transferências entre unidades diferentes (Sua unidade: ${myUnit}, Destinatário: ${targetUnit}).`);
+          setSelectedUser(null);
+          return;
+        }
         setSelectedUser(data);
       }
     } catch (err) {
@@ -123,12 +131,21 @@ export function Transfer() {
   useEffect(() => {
     if (searchQuery.length > 2) {
       const searchUsers = async () => {
-        const { data, error } = await supabase
+        const myUnit = profile?.unit || 'Ribeirão';
+        let query = supabase
           .from('profiles')
-          .select('id, full_name, grade, avatar_url')
+          .select('id, full_name, grade, unit, avatar_url')
           .ilike('full_name', `%${searchQuery}%`)
           .neq('id', profile?.id)
           .limit(5);
+
+        if (myUnit === 'Ribeirão') {
+          query = query.or('unit.eq.Ribeirão,unit.is.null');
+        } else {
+          query = query.eq('unit', myUnit);
+        }
+
+        const { data, error } = await query;
 
         if (!error && data) {
           setSearchResults(data);
@@ -138,7 +155,7 @@ export function Transfer() {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery, profile?.id]);
+  }, [searchQuery, profile?.id, profile?.unit]);
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();

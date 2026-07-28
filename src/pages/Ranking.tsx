@@ -1,22 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { supabase } from '../lib/supabase';
-import { Trophy, Medal, Crown } from 'lucide-react';
+import { Trophy, Medal, Crown, Building2 } from 'lucide-react';
 import { useExchangeRate } from '../hooks/useExchangeRate';
+import { useAuth } from '../contexts/AuthContext';
+import { UNITS } from '../constants';
 
 type Profile = {
   id: string;
   full_name: string;
   balance: number;
   grade: string | null;
+  unit: string | null;
   avatar_url: string | null;
 };
 
 export function Ranking() {
+  const { profile: currentUser } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<string>('Todos');
+  const [selectedUnit, setSelectedUnit] = useState<string>('Ribeirão');
   const { formatValue: formatBRL } = useExchangeRate();
+
+  // Initialize selectedUnit from current user profile
+  useEffect(() => {
+    if (currentUser?.unit) {
+      setSelectedUnit(currentUser.unit);
+    }
+  }, [currentUser]);
 
   const getAvatarUrl = (p: Profile) => {
     return p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`;
@@ -35,17 +47,24 @@ export function Ranking() {
 
   useEffect(() => {
     fetchRanking();
-  }, [selectedGrade]);
+  }, [selectedGrade, selectedUnit]);
 
   const fetchRanking = async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, balance, grade, avatar_url')
+        .select('id, full_name, balance, grade, unit, avatar_url')
         .eq('is_admin', false)
         .order('balance', { ascending: false })
         .limit(50);
+
+      // Filter by unit
+      if (selectedUnit === 'Ribeirão') {
+        query = query.or('unit.eq.Ribeirão,unit.is.null');
+      } else if (selectedUnit === 'Palmares') {
+        query = query.eq('unit', 'Palmares');
+      }
 
       if (selectedGrade !== 'Todos') {
         query = query.eq('grade', selectedGrade);
@@ -75,18 +94,38 @@ export function Ranking() {
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight underline decoration-brand-orange/30">Destaques da Escola</h1>
           </div>
-          <p className="text-gray-500 font-medium text-base md:text-lg">Os maiores patrimônios do colégio em tempo real.</p>
+          <p className="text-gray-500 font-medium text-base md:text-lg">
+            Os maiores patrimônios em tempo real da <strong className="text-black">Unidade {selectedUnit}</strong>.
+          </p>
         </div>
         
-        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 w-fit">
-          <span className="text-[10px] font-black uppercase text-gray-400 px-3 tracking-widest">Filtrar:</span>
-          <select
-            className="px-4 py-2 rounded-xl bg-gray-50 border-none outline-none font-black text-xs uppercase tracking-wider text-gray-700 appearance-none cursor-pointer hover:bg-gray-100 transition-all"
-            value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
-          >
-            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Unit Selector */}
+          <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 w-fit">
+            <Building2 className="w-4 h-4 text-brand-orange ml-2" />
+            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Unidade:</span>
+            <select
+              className="px-3 py-2 rounded-xl bg-gray-50 border-none outline-none font-black text-xs uppercase tracking-wider text-gray-700 appearance-none cursor-pointer hover:bg-gray-100 transition-all"
+              value={selectedUnit}
+              onChange={(e) => setSelectedUnit(e.target.value)}
+            >
+              {currentUser?.is_admin && <option value="Todas">Todas as Unidades</option>}
+              <option value="Ribeirão">Ribeirão</option>
+              <option value="Palmares">Palmares</option>
+            </select>
+          </div>
+
+          {/* Grade Selector */}
+          <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 w-fit">
+            <span className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Turma:</span>
+            <select
+              className="px-4 py-2 rounded-xl bg-gray-50 border-none outline-none font-black text-xs uppercase tracking-wider text-gray-700 appearance-none cursor-pointer hover:bg-gray-100 transition-all"
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+            >
+              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
         </div>
       </header>
 

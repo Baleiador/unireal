@@ -1,3 +1,6 @@
+export const UNITS = ['Ribeirão', 'Palmares'] as const;
+export type SchoolUnit = typeof UNITS[number];
+
 export const CURRENCY_CONFIG = {
   NAME: 'Unireal',
   SYMBOL: 'UR',

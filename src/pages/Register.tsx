@@ -8,6 +8,7 @@ import { useNavigate, Link } from 'react-router';
 export function Register() {
   const [fullName, setFullName] = useState('');
   const [grade, setGrade] = useState('');
+  const [unit, setUnit] = useState<string>('Ribeirão');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,13 +34,14 @@ export function Register() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
           grade: grade,
+          unit: unit,
           raw_password: password, // Store password in metadata
         }
       }
@@ -52,6 +54,13 @@ export function Register() {
         setError(error.message);
       }
     } else {
+      // Also try to update profiles table directly in case trigger doesn't map unit
+      if (authData.user) {
+        await supabase
+          .from('profiles')
+          .update({ unit: unit, full_name: fullName, grade: grade })
+          .eq('id', authData.user.id);
+      }
       setSuccess(true);
     }
     setLoading(false);
@@ -102,6 +111,19 @@ export function Register() {
               onChange={(e) => setFullName(e.target.value)}
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Unidade Escolar</label>
+            <select
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all bg-white font-medium text-gray-800"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              required
+            >
+              <option value="Ribeirão">Unidade Ribeirão</option>
+              <option value="Palmares">Unidade Palmares</option>
+            </select>
           </div>
 
           <div>

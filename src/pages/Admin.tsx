@@ -13,6 +13,7 @@ type Profile = {
   full_name: string;
   balance: number;
   grade: string | null;
+  unit?: string | null;
   total_invested?: number;
   raw_password?: string;
 };
@@ -26,6 +27,7 @@ type LogEntry = {
   change: 'positive' | 'negative' | 'neutral';
   studentName?: string;
   studentGrade?: string;
+  studentUnit?: string;
   otherParticipantName?: string;
   metadata?: {
     profit?: number;
@@ -71,6 +73,9 @@ export function Admin() {
   const [logDateEnd, setLogDateEnd] = useState<string>(new Date().toISOString().split('T')[0]);
   const [logTypeFilter, setLogTypeFilter] = useState<'all' | 'mint' | 'transfer' | 'investment' | 'redemption'>('all');
   
+  // Filters
+  const [unitFilter, setUnitFilter] = useState<'all' | string>('all');
+  const [logUnitFilter, setLogUnitFilter] = useState<'all' | string>('all');
   const [logGradeFilter, setLogGradeFilter] = useState<'all' | string>('all');
   
   // Settings state
@@ -289,8 +294,8 @@ Deseja continuar?`)) return;
         .from('transactions')
         .select(`
           *,
-          sender:profiles!transactions_sender_id_fkey(full_name, grade),
-          receiver:profiles!transactions_receiver_id_fkey(full_name, grade)
+          sender:profiles!transactions_sender_id_fkey(full_name, grade, unit),
+          receiver:profiles!transactions_receiver_id_fkey(full_name, grade, unit)
         `)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
@@ -300,7 +305,7 @@ Deseja continuar?`)) return;
         .from('investments')
         .select(`
           *,
-          user:profiles!investments_user_id_fkey(full_name, grade)
+          user:profiles!investments_user_id_fkey(full_name, grade, unit)
         `)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
@@ -323,13 +328,20 @@ Deseja continuar?`)) return;
         const receiverName = tx.receiver?.full_name || 'Desconhecido';
         const senderGrade = tx.sender?.grade;
         const receiverGrade = tx.receiver?.grade;
+        const senderUnit = tx.sender?.unit || 'Ribeirão';
+        const receiverUnit = tx.receiver?.unit || 'Ribeirão';
+        const studentUnit = receiverUnit || senderUnit;
         
         if (logTypeFilter === 'all' || logTypeFilter === type) {
           const matchesGrade = logGradeFilter === 'all' || 
                              senderGrade === logGradeFilter || 
                              receiverGrade === logGradeFilter;
                              
-          if (matchesGrade) {
+          const matchesUnit = logUnitFilter === 'all' || 
+                            senderUnit === logUnitFilter || 
+                            receiverUnit === logUnitFilter;
+
+          if (matchesGrade && matchesUnit) {
             logs.push({
               id: tx.id,
               type: type,
@@ -338,6 +350,7 @@ Deseja continuar?`)) return;
               change: isMint ? 'positive' : 'neutral',
               studentName: receiverName,
               studentGrade: receiverGrade || senderGrade || undefined,
+              studentUnit: studentUnit,
               otherParticipantName: senderName,
               description: isMint 
                 ? `Sistema premiou ${receiverName}`
@@ -351,9 +364,11 @@ Deseja continuar?`)) return;
       invs?.forEach(inv => {
         const studentName = inv.user?.full_name || 'Desconhecido';
         const studentGrade = inv.user?.grade;
+        const studentUnit = inv.user?.unit || 'Ribeirão';
         const matchesGrade = logGradeFilter === 'all' || studentGrade === logGradeFilter;
+        const matchesUnit = logUnitFilter === 'all' || studentUnit === logUnitFilter;
         
-        if (!matchesGrade) return;
+        if (!matchesGrade || !matchesUnit) return;
 
         // Purchase entry
         if (logTypeFilter === 'all' || logTypeFilter === 'investment') {
@@ -365,6 +380,7 @@ Deseja continuar?`)) return;
             change: 'negative',
             studentName: studentName,
             studentGrade: studentGrade || undefined,
+            studentUnit: studentUnit,
             description: `${studentName} investiu em ${inv.type}`,
             metadata: { productType: inv.type }
           });
@@ -383,6 +399,7 @@ Deseja continuar?`)) return;
                 change: 'positive',
                 studentName: studentName,
                 studentGrade: studentGrade || undefined,
+                studentUnit: studentUnit,
                 description: `${studentName} resgatou ${inv.type}`,
                 metadata: { 
                   productType: inv.type,
@@ -447,7 +464,7 @@ Deseja continuar?`)) return;
       // 1. Fetch Students
       const { data: studentData, error: studentError } = await supabase
         .from('profiles')
-        .select('id, full_name, balance, grade, raw_password')
+        .select('id, full_name, balance, grade, unit, raw_password')
         .eq('is_admin', false)
         .order('full_name');
 
@@ -590,9 +607,12 @@ Deseja continuar?`)) return;
     }
   };
 
-  const filteredStudents = students.filter(student => 
-    student.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const studentUnit = student.unit || 'Ribeirão';
+    const matchesUnit = unitFilter === 'all' || studentUnit === unitFilter;
+    return matchesSearch && matchesUnit;
+  });
 
   const handleMint = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -785,15 +805,26 @@ Deseja continuar?`)) return;
           <Card>
             <CardContent className="p-0">
               <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="relative w-full max-w-md">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar aluno pelo nome..."
-                    className="pl-12 bg-white h-12 rounded-xl"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-xl">
+                  <div className="relative w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar aluno pelo nome..."
+                      className="pl-12 bg-white h-12 rounded-xl"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    value={unitFilter}
+                    onChange={(e) => setUnitFilter(e.target.value)}
+                    className="w-full sm:w-auto px-4 h-12 bg-white border border-gray-200 rounded-xl font-bold text-xs uppercase tracking-wider text-gray-700 outline-none focus:ring-2 focus:ring-brand-orange cursor-pointer"
+                  >
+                    <option value="all">Todas as Unidades</option>
+                    <option value="Ribeirão">Ribeirão</option>
+                    <option value="Palmares">Palmares</option>
+                  </select>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchStudents} className="shrink-0 h-12 px-6 rounded-xl font-bold bg-white">
                   <PlusCircle className="w-4 h-4 mr-2" />
@@ -811,6 +842,7 @@ Deseja continuar?`)) return;
                     <thead>
                       <tr className="bg-white border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
                         <th className="px-6 py-4 font-medium">Aluno</th>
+                        <th className="px-6 py-4 font-medium">Unidade</th>
                         <th className="px-6 py-4 font-medium">Turma</th>
                         <th className="px-6 py-4 font-medium">Saldo em Conta</th>
                         <th className="px-6 py-4 font-medium">Total Investido</th>
@@ -838,6 +870,15 @@ Deseja continuar?`)) return;
                                   )}
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                student.unit === 'Palmares' 
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                  : 'bg-orange-50 text-orange-700 border border-orange-200'
+                              }`}>
+                                {student.unit || 'Ribeirão'}
+                              </span>
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-gray-600">{student.grade || '-'}</span>
@@ -938,6 +979,15 @@ Deseja continuar?`)) return;
                     />
                   </div>
                   <select 
+                    value={logUnitFilter}
+                    onChange={(e) => setLogUnitFilter(e.target.value)}
+                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
+                  >
+                    <option value="all">Todas as Unidades</option>
+                    <option value="Ribeirão">Ribeirão</option>
+                    <option value="Palmares">Palmares</option>
+                  </select>
+                  <select 
                     value={logGradeFilter}
                     onChange={(e) => setLogGradeFilter(e.target.value)}
                     className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-brand-orange outline-none"
@@ -1011,6 +1061,7 @@ Deseja continuar?`)) return;
                       <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                         <th className="px-8 py-4">Data/Hora</th>
                         <th className="px-8 py-4">Aluno / Turma</th>
+                        <th className="px-8 py-4">Unidade</th>
                         <th className="px-8 py-4">Tipo</th>
                         <th className="px-8 py-4">Descrição</th>
                         <th className="px-8 py-4 text-right">Valor</th>
@@ -1024,7 +1075,8 @@ Deseja continuar?`)) return;
                             log.description.toLowerCase().includes(query) ||
                             (log.studentName || '').toLowerCase().includes(query) ||
                             (log.otherParticipantName || '').toLowerCase().includes(query) ||
-                            (log.studentGrade || '').toLowerCase().includes(query)
+                            (log.studentGrade || '').toLowerCase().includes(query) ||
+                            (log.studentUnit || '').toLowerCase().includes(query)
                           );
                         })
                         .map((log) => (
@@ -1048,6 +1100,15 @@ Deseja continuar?`)) return;
                                 {log.studentGrade || '-'}
                               </span>
                             </div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              log.studentUnit === 'Palmares' 
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                : 'bg-orange-50 text-orange-700 border border-orange-200'
+                            }`}>
+                              {log.studentUnit || 'Ribeirão'}
+                            </span>
                           </td>
                           <td className="px-8 py-5">
                             <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
@@ -1655,8 +1716,29 @@ WITH CHECK (public.is_admin());
                 </div>
                 <div>
                   <h2 className="text-3xl font-black tracking-tight">{detailsStudent.full_name}</h2>
-                  <div className="flex items-center gap-4 mt-2">
+                  <div className="flex flex-wrap items-center gap-3 mt-2">
                     <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">{detailsStudent.grade || 'S/ Turma'}</span>
+                    <select
+                      value={detailsStudent.unit || 'Ribeirão'}
+                      onChange={async (e) => {
+                        const newUnit = e.target.value;
+                        try {
+                          const { error } = await supabase
+                            .from('profiles')
+                            .update({ unit: newUnit })
+                            .eq('id', detailsStudent.id);
+                          if (error) throw error;
+                          setStudents(students.map(s => s.id === detailsStudent.id ? { ...s, unit: newUnit } : s));
+                          setDetailsStudent({ ...detailsStudent, unit: newUnit });
+                        } catch (err: any) {
+                          alert('Erro ao atualizar unidade: ' + err.message);
+                        }
+                      }}
+                      className="px-3 py-1 bg-brand-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer border-none"
+                    >
+                      <option value="Ribeirão" className="bg-gray-900 text-white">Unidade Ribeirão</option>
+                      <option value="Palmares" className="bg-gray-900 text-white">Unidade Palmares</option>
+                    </select>
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">{detailsStudent.id.slice(0, 8)}...</span>
                   </div>
                 </div>

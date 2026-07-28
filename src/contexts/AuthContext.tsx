@@ -9,6 +9,7 @@ type Profile = {
   avatar_url: string | null;
   is_admin: boolean;
   grade: string | null;
+  unit: string | null;
 };
 
 type AuthContextType = {
