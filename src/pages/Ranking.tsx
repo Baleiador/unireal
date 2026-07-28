@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Trophy, Medal, Crown, Building2 } from 'lucide-react';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { useAuth } from '../contexts/AuthContext';
-import { UNITS } from '../constants';
+import { UNITS, GRADES } from '../constants';
 
 type Profile = {
   id: string;
@@ -34,16 +34,7 @@ export function Ranking() {
     return p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`;
   };
 
-  const GRADES = [
-    'Todos',
-    '6º Ano',
-    '7º Ano',
-    '8º Ano',
-    '9º Ano',
-    '1º Ano (Ensino Médio)',
-    '2º Ano (Ensino Médio)',
-    '3º Ano (Ensino Médio)',
-  ];
+  const rankingGrades = ['Todos', ...GRADES];
 
   useEffect(() => {
     fetchRanking();
@@ -127,7 +118,7 @@ export function Ranking() {
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
             >
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+              {rankingGrades.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
         </div>

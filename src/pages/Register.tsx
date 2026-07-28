@@ -4,6 +4,7 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { useNavigate, Link } from 'react-router';
+import { GRADES } from '../constants';
 
 export function Register() {
   const [fullName, setFullName] = useState('');
@@ -129,20 +130,15 @@ export function Register() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Turma / Cargo</label>
             <select
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all bg-white"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all bg-white font-medium text-gray-800"
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               required
             >
               <option value="" disabled>Selecione sua turma ou cargo</option>
-              <option value="Coordenação / Professor">Coordenação / Professor</option>
-              <option value="6º Ano">6º Ano</option>
-              <option value="7º Ano">7º Ano</option>
-              <option value="8º Ano">8º Ano</option>
-              <option value="9º Ano">9º Ano</option>
-              <option value="1º Ano (Ensino Médio)">1º Ano (Ensino Médio)</option>
-              <option value="2º Ano (Ensino Médio)">2º Ano (Ensino Médio)</option>
-              <option value="3º Ano (Ensino Médio)">3º Ano (Ensino Médio)</option>
+              {GRADES.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
             </select>
           </div>
 

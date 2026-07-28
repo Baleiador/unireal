@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { User, GraduationCap, Save, CheckCircle2, AlertCircle, Loader2, RefreshCw, Palette, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GRADES } from '../constants';
 
 const AVATAR_STYLES = [
   { id: 'avataaars', name: 'Humano' },
@@ -63,30 +64,63 @@ export default function Profile() {
     setMessage(null);
 
     try {
-      const updateData: any = {
+      const updateData = {
         full_name: fullName,
         grade: grade,
         unit: unit,
         avatar_url: avatarUrl,
       };
 
-      const { error } = await supabase
+      // Also update user metadata in Supabase Auth as secondary storage
+      await supabase.auth.updateUser({
+        data: {
+          full_name: fullName,
+          grade: grade,
+          unit: unit,
+          avatar_url: avatarUrl,
+        }
+      }).catch(() => {});
+
+      // Try update profile table
+      let { error } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', profile.id);
 
-      if (error) throw error;
+      // If update fails or row doesn't exist, try upsert
+      if (error) {
+        const upsertRes = await supabase
+          .from('profiles')
+          .upsert({
+            id: profile.id,
+            ...updateData,
+            balance: profile.balance ?? 0,
+            is_admin: profile.is_admin ?? false,
+          }, { onConflict: 'id' });
+        error = upsertRes.error;
+      }
+
+      if (error) {
+        setMessage({ 
+          type: 'error', 
+          text: `Erro ao salvar no Supabase (${error.message}). Execute o comando SQL no Supabase para liberar permissão.` 
+        });
+      } else {
+        setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      }
 
       await refreshProfile();
-      setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
-      
-      setTimeout(() => setMessage(null), 3000);
+      setTimeout(() => setMessage(null), 4000);
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      const errorMessage = error.message || 'Erro desconhecido';
+      const errorMessage = error.message || 'Erro de permissão RLS no Supabase';
+      
+      // Still update local profile state so UI is updated for current session
+      await refreshProfile();
+
       setMessage({ 
         type: 'error', 
-        text: `Falha ao atualizar perfil: ${errorMessage}` 
+        text: `Aviso: As alterações locais foram salvas na sessão, mas o Supabase retornou um erro (${errorMessage}). Verifique as políticas de RLS no Supabase.` 
       });
     } finally {
       setIsLoading(false);
@@ -200,14 +234,21 @@ export default function Profile() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Série / Turma</label>
                 <div className="relative">
-                  <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
+                  <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
+                  <select
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
-                    placeholder="Ex: 3º Ano A"
-                    className="pl-12 h-14 bg-gray-50 border-transparent focus:bg-white"
+                    className="w-full pl-12 pr-4 h-14 bg-gray-50 border-transparent focus:bg-white rounded-2xl font-bold text-gray-800 border focus:border-brand-orange outline-none transition-all cursor-pointer"
                     required
-                  />
+                  >
+                    <option value="" disabled>Selecione sua turma ou cargo</option>
+                    {grade && !GRADES.includes(grade as any) && (
+                      <option value={grade}>{grade}</option>
+                    )}
+                    {GRADES.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
