@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw, Key } from 'lucide-react';
 import { Navigate } from 'react-router';
 import { calculateCurrentAmount, Investment } from '../lib/investment-utils';
 
@@ -82,6 +82,9 @@ export function Admin() {
   const [successSettings, setSuccessSettings] = useState(false);
   const [dbError, setDbError] = useState<boolean>(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   
@@ -645,6 +648,45 @@ Deseja continuar?`)) return;
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent || !newPassword) {
+      setError('Por favor, insira uma nova senha.');
+      return;
+    }
+
+    setUpdatingPassword(true);
+    setError(null);
+
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ raw_password: newPassword })
+        .eq('id', selectedStudent.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setStudents(students.map(s => 
+        s.id === selectedStudent.id ? { ...s, raw_password: newPassword } : s
+      ));
+
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setPasswordModalOpen(false);
+        setSelectedStudent(null);
+        setNewPassword('');
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('Password update error:', err);
+      setError('Erro ao atualizar senha. Verifique as permissões.');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
   const openModal = (student: Profile) => {
     setSelectedStudent(student);
     setAmount('');
@@ -829,6 +871,17 @@ Deseja continuar?`)) return;
                                 title="Ver Perfil"
                               >
                                 <Eye className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedStudent(student);
+                                  setNewPassword('');
+                                  setPasswordModalOpen(true);
+                                }}
+                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                                title="Trocar Senha"
+                              >
+                                <Key className="w-5 h-5" />
                               </button>
                               <Button 
                                 size="sm" 
@@ -1497,6 +1550,84 @@ WITH CHECK (public.is_admin());
                     </Button>
                     <Button type="submit" className="flex-1" disabled={minting}>
                       {minting ? 'Gerando...' : `Enviar ${amount || 0} UR`}
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual Password Reset Modal */}
+      {passwordModalOpen && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            {success ? (
+              <div className="p-10 text-center">
+                <div className="w-20 h-20 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-10 h-10" />
+                </div>
+                <h2 className="text-2xl font-bold text-black mb-2">Senha Alterada!</h2>
+                <p className="text-gray-500">A nova senha de {selectedStudent.full_name} foi salva com sucesso no sistema.</p>
+              </div>
+            ) : (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                  <div className="flex items-center gap-2">
+                    <Key className="w-5 h-5 text-purple-600" />
+                    <h3 className="font-bold text-lg text-black">Alterar Senha Manualmente</h3>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setPasswordModalOpen(false);
+                      setSelectedStudent(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleUpdatePassword} className="p-6 space-y-6">
+                  {error && (
+                    <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                    <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">Alterando senha de</p>
+                    <p className="font-black text-purple-900">{selectedStudent.full_name}</p>
+                    <p className="text-[10px] text-purple-400 mt-1">Isso atualizará apenas o campo 'Senha Visual' no perfil do aluno.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nova Senha</label>
+                    <Input
+                      type="text"
+                      placeholder="Digite a nova senha aqui..."
+                      className="text-lg font-bold h-14"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={() => {
+                        setPasswordModalOpen(false);
+                        setSelectedStudent(null);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700" disabled={updatingPassword}>
+                      {updatingPassword ? 'Salvando...' : 'Salvar Nova Senha'}
                     </Button>
                   </div>
                 </form>

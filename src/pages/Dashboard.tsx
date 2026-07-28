@@ -422,7 +422,7 @@ export function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    {Array.from(new Set(investments.map(i => i.type))).map((type) => {
+                    {Array.from(new Set(investments.map(i => i.type))).map((type: string) => {
                       const safeId = type.replace(/[^a-z0-9]/gi, '-');
                       return (
                         <linearGradient key={`grad-${type}`} id={`color-${safeId}`} x1="0" y1="0" x2="0" y2="1">
@@ -457,7 +457,7 @@ export function Dashboard() {
                     labelStyle={{ fontWeight: '900', color: '#000', marginBottom: '4px', fontSize: '12px' }}
                   />
                   {/* Distinct investments by type */}
-                  {Array.from(new Set(investments.map(i => i.type))).map((type) => {
+                  {Array.from(new Set(investments.map(i => i.type))).map((type: string) => {
                     const safeId = type.replace(/[^a-z0-9]/gi, '-');
                     return (
                       <Area 
