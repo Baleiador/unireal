@@ -132,23 +132,19 @@ export function Transfer() {
     if (searchQuery.length > 2) {
       const searchUsers = async () => {
         const myUnit = profile?.unit || 'Ribeirão';
-        let query = supabase
+        const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, grade, unit, avatar_url')
+          .select('*')
           .ilike('full_name', `%${searchQuery}%`)
           .neq('id', profile?.id)
-          .limit(5);
-
-        if (myUnit === 'Ribeirão') {
-          query = query.or('unit.eq.Ribeirão,unit.is.null');
-        } else {
-          query = query.eq('unit', myUnit);
-        }
-
-        const { data, error } = await query;
+          .limit(20);
 
         if (!error && data) {
-          setSearchResults(data);
+          const filtered = data.filter((u: any) => {
+            const uUnit = u.unit || 'Ribeirão';
+            return uUnit === myUnit;
+          });
+          setSearchResults(filtered.slice(0, 5));
         }
       };
       searchUsers();

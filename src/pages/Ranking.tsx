@@ -54,17 +54,9 @@ export function Ranking() {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, balance, grade, unit, avatar_url')
+        .select('*')
         .eq('is_admin', false)
-        .order('balance', { ascending: false })
-        .limit(50);
-
-      // Filter by unit
-      if (selectedUnit === 'Ribeirão') {
-        query = query.or('unit.eq.Ribeirão,unit.is.null');
-      } else if (selectedUnit === 'Palmares') {
-        query = query.eq('unit', 'Palmares');
-      }
+        .order('balance', { ascending: false });
 
       if (selectedGrade !== 'Todos') {
         query = query.eq('grade', selectedGrade);
@@ -72,8 +64,20 @@ export function Ranking() {
 
       const { data, error } = await query;
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (error) {
+        console.error('Error fetching ranking:', error);
+        setProfiles([]);
+        return;
+      }
+
+      let filtered = (data || []) as Profile[];
+      if (selectedUnit === 'Ribeirão') {
+        filtered = filtered.filter(p => !p.unit || p.unit === 'Ribeirão');
+      } else if (selectedUnit === 'Palmares') {
+        filtered = filtered.filter(p => p.unit === 'Palmares');
+      }
+
+      setProfiles(filtered.slice(0, 50));
     } catch (error) {
       console.error('Error fetching ranking:', error);
     } finally {
