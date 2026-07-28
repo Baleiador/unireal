@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw, Key } from 'lucide-react';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw, Key, Building2 } from 'lucide-react';
 import { Navigate } from 'react-router';
 import { calculateCurrentAmount, Investment } from '../lib/investment-utils';
 
@@ -328,8 +328,8 @@ Deseja continuar?`)) return;
         const receiverName = tx.receiver?.full_name || 'Desconhecido';
         const senderGrade = tx.sender?.grade;
         const receiverGrade = tx.receiver?.grade;
-        const senderUnit = tx.sender?.unit || 'Ribeirão';
-        const receiverUnit = tx.receiver?.unit || 'Ribeirão';
+        const senderUnit = tx.sender?.unit || 'Palmares';
+        const receiverUnit = tx.receiver?.unit || 'Palmares';
         const studentUnit = receiverUnit || senderUnit;
         
         if (logTypeFilter === 'all' || logTypeFilter === type) {
@@ -364,7 +364,7 @@ Deseja continuar?`)) return;
       invs?.forEach(inv => {
         const studentName = inv.user?.full_name || 'Desconhecido';
         const studentGrade = inv.user?.grade;
-        const studentUnit = inv.user?.unit || 'Ribeirão';
+        const studentUnit = inv.user?.unit || 'Palmares';
         const matchesGrade = logGradeFilter === 'all' || studentGrade === logGradeFilter;
         const matchesUnit = logUnitFilter === 'all' || studentUnit === logUnitFilter;
         
@@ -506,6 +506,30 @@ Deseja continuar?`)) return;
     }
   };
 
+  const migrateExistingStudentsToPalmares = async () => {
+    if (!confirm('Deseja mover TODOS os cadastrados atuais para a unidade "Palmares"? Isso deixará a unidade "Ribeirão" limpa para os novos cadastros.')) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ unit: 'Palmares' })
+        .eq('is_admin', false);
+
+      if (error) {
+        alert(`Aviso do Supabase: ${error.message}\n\nCaso RLS bloqueie alteração em lote no frontend, execute no SQL Editor do Supabase:\nUPDATE profiles SET unit = 'Palmares';`);
+      } else {
+        alert('Sucesso! Todos os cadastrados existentes foram atualizados para a unidade Palmares.');
+      }
+      await fetchStudents();
+    } catch (err: any) {
+      alert('Erro ao migrar: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchStudentDetails = async (student: Profile) => {
     setDetailsStudent(student);
     setLoadingDetails(true);
@@ -609,7 +633,7 @@ Deseja continuar?`)) return;
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.full_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const studentUnit = student.unit || 'Ribeirão';
+    const studentUnit = student.unit || 'Palmares';
     const matchesUnit = unitFilter === 'all' || studentUnit === unitFilter;
     return matchesSearch && matchesUnit;
   });
@@ -826,10 +850,16 @@ Deseja continuar?`)) return;
                     <option value="Palmares">Palmares</option>
                   </select>
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchStudents} className="shrink-0 h-12 px-6 rounded-xl font-bold bg-white">
-                  <PlusCircle className="w-4 h-4 mr-2" />
-                  Sincronizar
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={migrateExistingStudentsToPalmares} className="h-12 px-4 rounded-xl font-bold bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100 transition-colors">
+                    <Building2 className="w-4 h-4 mr-2 text-amber-600" />
+                    Mover Todos para Palmares
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={fetchStudents} className="h-12 px-6 rounded-xl font-bold bg-white">
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Sincronizar
+                  </Button>
+                </div>
               </div>
 
             {loading ? (
@@ -877,7 +907,7 @@ Deseja continuar?`)) return;
                                   ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                                   : 'bg-orange-50 text-orange-700 border border-orange-200'
                               }`}>
-                                {student.unit || 'Ribeirão'}
+                                {student.unit || 'Palmares'}
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -1107,7 +1137,7 @@ Deseja continuar?`)) return;
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                                 : 'bg-orange-50 text-orange-700 border border-orange-200'
                             }`}>
-                              {log.studentUnit || 'Ribeirão'}
+                              {log.studentUnit || 'Palmares'}
                             </span>
                           </td>
                           <td className="px-8 py-5">
@@ -1719,7 +1749,7 @@ WITH CHECK (public.is_admin());
                   <div className="flex flex-wrap items-center gap-3 mt-2">
                     <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">{detailsStudent.grade || 'S/ Turma'}</span>
                     <select
-                      value={detailsStudent.unit || 'Ribeirão'}
+                      value={detailsStudent.unit || 'Palmares'}
                       onChange={async (e) => {
                         const newUnit = e.target.value;
                         try {

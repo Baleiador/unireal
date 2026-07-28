@@ -30,7 +30,7 @@ export default function Profile() {
     if (profile) {
       setFullName(profile.full_name || '');
       setGrade(profile.grade || '');
-      setUnit(profile.unit || 'Ribeirão');
+      setUnit(profile.unit || 'Palmares');
       
       // Extract seed and style from avatar_url if exists
       // Format expected: https://api.dicebear.com/7.x/{style}/svg?seed={seed}
@@ -152,7 +152,7 @@ export default function Profile() {
       } else if (unitColumnMissing) {
         setMessage({ 
           type: 'success', 
-          text: 'Perfil atualizado com sucesso! Nota: Para salvar a unidade no banco principal, execute no SQL Editor do Supabase: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS unit text DEFAULT \'Ribeirão\';' 
+          text: 'Perfil atualizado com sucesso! Nota: Para salvar a unidade no banco principal, execute no SQL Editor do Supabase: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS unit text DEFAULT \'Palmares\';' 
         });
       } else {
         setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });

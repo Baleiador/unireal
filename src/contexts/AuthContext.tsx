@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...data,
           full_name: data.full_name || meta.full_name || currentUser?.email?.split('@')[0] || 'Usuário',
           grade: data.grade || meta.grade || null,
-          unit: data.unit || meta.unit || 'Ribeirão',
+          unit: data.unit || meta.unit || 'Palmares',
           avatar_url: data.avatar_url || meta.avatar_url || null,
         });
       } else {

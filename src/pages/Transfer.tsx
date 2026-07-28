@@ -53,8 +53,8 @@ export function Transfer() {
         .single();
       
       if (!error && data) {
-        const targetUnit = data.unit || 'Ribeirão';
-        const myUnit = profile?.unit || 'Ribeirão';
+        const targetUnit = data.unit || 'Palmares';
+        const myUnit = profile?.unit || 'Palmares';
         if (targetUnit !== myUnit) {
           setError(`Não é possível realizar transferências entre unidades diferentes (Sua unidade: ${myUnit}, Destinatário: ${targetUnit}).`);
           setSelectedUser(null);
@@ -131,7 +131,7 @@ export function Transfer() {
   useEffect(() => {
     if (searchQuery.length > 2) {
       const searchUsers = async () => {
-        const myUnit = profile?.unit || 'Ribeirão';
+        const myUnit = profile?.unit || 'Palmares';
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -141,7 +141,7 @@ export function Transfer() {
 
         if (!error && data) {
           const filtered = data.filter((u: any) => {
-            const uUnit = u.unit || 'Ribeirão';
+            const uUnit = u.unit || 'Palmares';
             return uUnit === myUnit;
           });
           setSearchResults(filtered.slice(0, 5));

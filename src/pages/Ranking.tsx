@@ -20,7 +20,7 @@ export function Ranking() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<string>('Todos');
-  const [selectedUnit, setSelectedUnit] = useState<string>('Ribeirão');
+  const [selectedUnit, setSelectedUnit] = useState<string>('Palmares');
   const { formatValue: formatBRL } = useExchangeRate();
 
   // Initialize selectedUnit from current user profile
@@ -63,9 +63,9 @@ export function Ranking() {
 
       let filtered = (data || []) as Profile[];
       if (selectedUnit === 'Ribeirão') {
-        filtered = filtered.filter(p => !p.unit || p.unit === 'Ribeirão');
+        filtered = filtered.filter(p => p.unit === 'Ribeirão');
       } else if (selectedUnit === 'Palmares') {
-        filtered = filtered.filter(p => p.unit === 'Palmares');
+        filtered = filtered.filter(p => !p.unit || p.unit === 'Palmares');
       }
 
       setProfiles(filtered.slice(0, 50));
