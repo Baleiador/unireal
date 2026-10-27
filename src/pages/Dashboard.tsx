@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon, Sparkles, HeartHandshake, CheckCircle2, Gift, Send } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
+import { PARENT_BONUS_AMOUNT } from '../constants';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   Investment, 
@@ -36,7 +37,7 @@ type TransactionItem = {
 };
 
 export function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [activities, setActivities] = useState<TransactionItem[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,62 @@ export function Dashboard() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [closedAnns, setClosedAnns] = useState<string[]>([]);
   const [, setTick] = useState(0);
+  const [claimingBonus, setClaimingBonus] = useState(false);
+  const [bonusSuccessMsg, setBonusSuccessMsg] = useState(false);
+
+  const handleClaimParentBonus = async () => {
+    if (!profile || profile.parent_bonus_claimed) return;
+    setClaimingBonus(true);
+    try {
+      const bonus = PARENT_BONUS_AMOUNT; // 2000 UR$
+      const newBalance = (profile.balance || 0) + bonus;
+
+      // 1. Update user metadata in auth
+      await supabase.auth.updateUser({
+        data: {
+          parent_bonus_claimed: true,
+          balance: newBalance,
+        }
+      }).catch(err => console.warn('Auth metadata bonus update notice:', err));
+
+      // 2. Update profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          balance: newBalance,
+          parent_bonus_claimed: true,
+        })
+        .eq('id', profile.id);
+
+      if (profileError) {
+        // Fallback without parent_bonus_claimed column
+        await supabase
+          .from('profiles')
+          .update({ balance: newBalance })
+          .eq('id', profile.id);
+      }
+
+      // 3. Log into transactions if possible
+      try {
+        await supabase.from('transactions').insert({
+          sender_id: profile.id,
+          receiver_id: profile.id,
+          amount: bonus,
+        });
+      } catch (txErr) {
+        console.warn('Transaction log notice:', txErr);
+      }
+
+      await refreshProfile();
+      setBonusSuccessMsg(true);
+      fetchActivities();
+    } catch (err: any) {
+      console.error('Error claiming parent bonus:', err);
+      alert('Erro ao resgatar bônus: ' + (err.message || err));
+    } finally {
+      setClaimingBonus(false);
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -260,6 +317,100 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* Parent Welcome Bonus Redemption Banner */}
+      {profile?.role === 'parent' && !profile?.parent_bonus_claimed && (
+        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-[32px] p-6 sm:p-8 text-white shadow-2xl shadow-orange-500/20 relative overflow-hidden border border-white/20 animate-in fade-in slide-in-from-top-3 duration-500">
+          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-start sm:items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-inner text-3xl">
+                🎁
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider border border-white/20">
+                    Apresentação Escolar • Especial Pais
+                  </span>
+                  <span className="px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {profile.linked_student_name ? `Filho: ${profile.linked_student_name}` : 'Responsável Vinculado'}
+                  </span>
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight">
+                  Resgate seu Bônus de {PARENT_BONUS_AMOUNT.toLocaleString()} Unireais!
+                </h3>
+                <p className="text-white/90 text-sm mt-1 max-w-2xl font-medium leading-relaxed">
+                  Bem-vindo(a) à plataforma do projeto! Como pai/responsável com filho vinculado, você ganhou <strong>{PARENT_BONUS_AMOUNT.toLocaleString()} UR$</strong> de boas-vindas para experimentar transferências, investimentos e vivenciar o projeto na prática.
+                </p>
+              </div>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleClaimParentBonus}
+              disabled={claimingBonus}
+              className="w-full md:w-auto px-8 py-4 bg-white text-orange-600 hover:bg-orange-50 active:scale-95 transition-all font-black text-base rounded-2xl shadow-xl shadow-black/10 shrink-0 flex items-center justify-center gap-3 cursor-pointer group"
+            >
+              {claimingBonus ? (
+                <>
+                  <div className="w-5 h-5 rounded-full border-2 border-orange-600 border-t-transparent animate-spin" />
+                  <span>Resgatando...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 text-yellow-500 group-hover:rotate-12 transition-transform" />
+                  <span>Resgatar 2.000 UR$ Agora</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bonus Claimed Success Banner */}
+      {bonusSuccessMsg && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-[28px] p-5 flex items-center gap-4 text-emerald-800 animate-in fade-in duration-300">
+          <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-black text-base">Parabéns! Bônus de 2.000 Unireais resgatado com sucesso!</h4>
+            <p className="text-xs text-emerald-700 font-medium mt-0.5">
+              Seu saldo foi atualizado. Você já pode enviar moedas para o seu filho ou simular aplicações na aba Investimentos.
+            </p>
+          </div>
+          <button 
+            onClick={() => setBonusSuccessMsg(false)} 
+            className="text-emerald-500 hover:text-emerald-700 text-xs font-black uppercase p-2"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {/* Parent Family Connection Card */}
+      {profile?.role === 'parent' && profile?.linked_student_name && (
+        <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-brand-orange flex items-center justify-center shrink-0">
+              <HeartHandshake className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Filho(a) Vinculado(a)</span>
+              <p className="text-lg font-black text-black">{profile.linked_student_name}</p>
+              <p className="text-xs text-gray-400 font-medium">Unidade {profile.unit || 'Palmares'}</p>
+            </div>
+          </div>
+          
+          <Link
+            to={`/transfer?to=${profile.linked_student_id || ''}`}
+            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-orange text-white hover:bg-orange-600 transition-all font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-brand-orange/20"
+          >
+            <Send className="w-4 h-4" />
+            Transferir Unireais para {profile.linked_student_name.split(' ')[0]}
+          </Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Stats Block */}
         <div className="lg:col-span-8 flex flex-col gap-6 md:gap-8">
@@ -279,17 +430,25 @@ export function Dashboard() {
               </div>
               
               {!profile?.is_admin && (
-                <div className="flex items-center gap-2 mt-6 md:mt-8">
+                <div className="flex flex-wrap items-center gap-2 mt-6 md:mt-8">
                   <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
-                    Estudante
+                    {profile?.role === 'parent' ? 'Pai / Responsável' : 'Estudante'}
                   </span>
                   <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
-                    {profile?.grade || 'Sem Turma'}
+                    {profile?.role === 'parent' 
+                      ? (profile?.linked_student_name ? `Filho: ${profile.linked_student_name}` : 'Responsável')
+                      : (profile?.grade || 'Sem Turma')}
                   </span>
+                  {profile?.unit && (
+                    <span className="px-3 py-1.5 md:px-4 md:py-2 bg-black/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
+                      Unidade {profile.unit}
+                    </span>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
+
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block group">

@@ -78,7 +78,7 @@ export function Layout() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end mr-2">
               <span className="text-xs font-black text-gray-400 tracking-widest uppercase">
-                {profile?.is_admin ? 'Professor' : 'Saldo Atual'}
+                {profile?.is_admin ? 'Professor' : profile?.role === 'parent' ? 'Pai / Responsável' : 'Saldo Atual'}
               </span>
               <span className="text-sm font-black text-black">
                 {profile?.is_admin ? 'Controle Total' : `${(profile?.balance || 0).toLocaleString()} UR`}
@@ -137,7 +137,7 @@ export function Layout() {
                         <div className="flex flex-col min-w-0">
                           <p className="text-sm font-black text-black truncate">{profile?.full_name}</p>
                           <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest leading-none mt-1">
-                            {profile?.is_admin ? 'Administrador' : 'Estudante'}
+                            {profile?.is_admin ? 'Administrador' : profile?.role === 'parent' ? (profile?.linked_student_name ? `Pai de ${profile.linked_student_name.split(' ')[0]}` : 'Pai / Responsável') : 'Estudante'}
                           </p>
                         </div>
                       </div>

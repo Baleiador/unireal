@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw, Key, Building2 } from 'lucide-react';
-import { Navigate } from 'react-router';
+import { PlusCircle, Search, X, Coins, Settings, TrendingUpDown, TrendingUp, ShoppingCart, BarChart3, Save, CheckCircle, Users, Bell, Trash2, Megaphone, Eye, List, BarChart, History, ArrowUpRight, ArrowDownLeft, Briefcase, AlertTriangle, RotateCcw, Key, Building2, FileText } from 'lucide-react';
+import { Navigate, Link } from 'react-router';
 import { calculateCurrentAmount, Investment } from '../lib/investment-utils';
 
 type Profile = {
@@ -911,7 +911,13 @@ Deseja continuar?`)) return;
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="text-gray-600">{student.grade || '-'}</span>
+                              {student.grade === 'Responsável / Familiar' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+                                  👨‍👩‍👧 Responsável
+                                </span>
+                              ) : (
+                                <span className="text-gray-600 font-medium">{student.grade || '-'}</span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-bold text-black">{(student.balance || 0).toLocaleString()} UR</span>

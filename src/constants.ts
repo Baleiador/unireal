@@ -12,6 +12,9 @@ export const GRADES = [
   '3º Ano (Ensino Médio)',
 ] as const;
 
+export const PARENT_GRADE = 'Responsável / Familiar' as const;
+export const PARENT_BONUS_AMOUNT = 2000;
+
 export const CURRENCY_CONFIG = {
   NAME: 'Unireal',
   SYMBOL: 'UR',

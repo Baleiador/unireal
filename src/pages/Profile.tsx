@@ -307,6 +307,17 @@ export default function Profile() {
                   className="h-14 bg-gray-100 border-transparent text-gray-500 opacity-60 italic"
                 />
               </div>
+
+              {profile?.role === 'parent' && (
+                <div className="space-y-2 md:col-span-2 p-5 bg-orange-50 border border-orange-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-brand-orange tracking-wider block">Estudante Vinculado à Conta</span>
+                    <p className="text-base font-black text-gray-900 mt-0.5">{profile.linked_student_name || 'Estudante não especificado'}</p>
+                    <p className="text-xs text-gray-500 font-medium">Categoria: Pai / Mãe / Responsável</p>
+                  </div>
+                  <span className="text-3xl">👨‍👩‍👧</span>
+                </div>
+              )}
             </div>
 
             <AnimatePresence>
