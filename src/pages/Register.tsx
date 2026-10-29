@@ -101,7 +101,7 @@ export function Register() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/');
     } else {
       setError(result.error || 'Erro ao entrar. Tente novamente.');
     }
@@ -150,7 +150,7 @@ export function Register() {
 
     setRegisteredChildName(chosenStudentName);
     // Directly navigate into the dashboard for instantaneous presentation experience
-    navigate('/dashboard');
+    navigate('/');
   };
 
   // Submit Handler for Students (Email + Password standard)

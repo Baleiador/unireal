@@ -120,6 +120,7 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Navigate to="/" replace />} />
             <Route path="ranking" element={<Ranking />} />
             <Route path="transfer" element={<Transfer />} />
             <Route path="investments" element={<Investments />} />
@@ -127,6 +128,7 @@ export default function App() {
             <Route path="my-qr" element={<MyQRCode />} />
             <Route path="profile" element={<Profile />} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

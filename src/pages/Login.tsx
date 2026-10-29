@@ -95,7 +95,7 @@ export function Login() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/');
     } else {
       setError(result.error || 'Erro ao entrar. Tente novamente.');
     }
@@ -138,7 +138,7 @@ export function Login() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/');
     } else {
       setError(result.error || 'Não foi possível entrar. Tente novamente.');
     }
@@ -164,7 +164,7 @@ export function Login() {
     if (error) {
       setError(error.message);
     } else {
-      navigate('/dashboard');
+      navigate('/');
     }
     setLoading(false);
   };
