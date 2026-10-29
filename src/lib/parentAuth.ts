@@ -14,7 +14,7 @@ export function cleanSlug(text: string): string {
 export function generateParentEmail(parentName: string, childIdentifier: string): string {
   const pSlug = cleanSlug(parentName).slice(0, 30) || 'responsavel';
   const cSlug = cleanSlug(childIdentifier).slice(0, 30) || 'aluno';
-  return `pais.${pSlug}.${cSlug}@apresentacao.unireais.edu`;
+  return `pais.${pSlug}.${cSlug}@pais.unireais.edu`;
 }
 
 export interface ParentCredentials {

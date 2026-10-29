@@ -435,7 +435,7 @@ export function Register() {
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl">🎁</span>
                   <div>
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Bônus Especial de Apresentação</span>
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Bônus Especial de Boas-Vindas</span>
                     <span className="text-sm font-black text-brand-orange">+{PARENT_BONUS_AMOUNT.toLocaleString()} Unireais (UR$)</span>
                   </div>
                 </div>

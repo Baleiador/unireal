@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../lib/supabase';
-import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon, Sparkles, HeartHandshake, CheckCircle2, Gift, Send, FileText, Download, Printer } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Trophy, QrCode, TrendingUpDown, Clock, TrendingUp, Megaphone, X as CloseIcon, Sparkles, HeartHandshake, CheckCircle2, Gift, Send } from 'lucide-react';
 import { Link } from 'react-router';
 import { useExchangeRate } from '../hooks/useExchangeRate';
 import { PARENT_BONUS_AMOUNT } from '../constants';
@@ -52,29 +52,6 @@ export function Dashboard() {
   const [, setTick] = useState(0);
   const [claimingBonus, setClaimingBonus] = useState(false);
   const [bonusSuccessMsg, setBonusSuccessMsg] = useState(false);
-  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
-
-  const handleDownloadPdf = async (url: string, filename: string) => {
-    setDownloadingDoc(filename);
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Falha ao obter o arquivo');
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1500);
-    } catch (err) {
-      console.warn('Fallback direct navigation:', err);
-      window.open(url, '_blank');
-    } finally {
-      setDownloadingDoc(null);
-    }
-  };
 
   const handleClaimParentBonus = async () => {
     if (!profile || profile.parent_bonus_claimed) return;
@@ -352,7 +329,7 @@ export function Dashboard() {
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider border border-white/20">
-                    Apresentação Escolar • Especial Pais
+                    Acesso dos Pais & Responsáveis
                   </span>
                   <span className="px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider">
                     {profile.linked_student_name ? `Filho: ${profile.linked_student_name}` : 'Responsável Vinculado'}
@@ -425,20 +402,6 @@ export function Dashboard() {
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <button
-              type="button"
-              onClick={() => handleDownloadPdf('/Titulo_Capitalizacao_Boletim_Unireal.pdf', 'Titulo_Capitalizacao_Boletim_Unireal.pdf')}
-              disabled={downloadingDoc === 'Titulo_Capitalizacao_Boletim_Unireal.pdf'}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-brand-orange transition-all font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-brand-orange/20 cursor-pointer active:scale-95"
-            >
-              {downloadingDoc === 'Titulo_Capitalizacao_Boletim_Unireal.pdf' ? (
-                <div className="w-4 h-4 rounded-full border-2 border-brand-orange border-t-transparent animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4" />
-              )}
-              <span>Baixar Título do Boletim (PDF)</span>
-            </button>
-
             <Link
               to={`/transfer?to=${profile.linked_student_id || ''}`}
               className="w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-orange text-white hover:bg-orange-600 transition-all font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-brand-orange/20"
@@ -449,60 +412,6 @@ export function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* Printable Project Materials Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-[32px] p-6 shadow-xl border border-slate-700/50 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden">
-        <div className="flex items-start sm:items-center gap-4 relative z-10">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-            <Printer className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider rounded-full border border-amber-500/30">
-                Plantão Pedagógico & Apresentação
-              </span>
-              <span className="text-slate-400 text-xs hidden sm:inline">•</span>
-              <span className="text-slate-300 text-xs font-semibold hidden sm:inline">Pronto para Imprimir</span>
-            </div>
-            <h4 className="text-lg font-black text-white">
-              Documentos Oficiais do Projeto Unireal
-            </h4>
-            <p className="text-xs text-slate-300 max-w-xl font-medium mt-0.5">
-              Baixe o <strong>Título de Capitalização Frente e Verso</strong> (com área de 1/2 folha A4 para colar o boletim impresso) e o <strong>Roteiro dos Alunos</strong> para apresentação aos pais.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-10 w-full lg:w-auto">
-          <button
-            type="button"
-            onClick={() => handleDownloadPdf('/Titulo_Capitalizacao_Boletim_Unireal.pdf', 'Titulo_Capitalizacao_Boletim_Unireal.pdf')}
-            disabled={downloadingDoc === 'Titulo_Capitalizacao_Boletim_Unireal.pdf'}
-            className="flex-1 sm:flex-none px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
-          >
-            {downloadingDoc === 'Titulo_Capitalizacao_Boletim_Unireal.pdf' ? (
-              <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            <span>Título do Boletim (PDF)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleDownloadPdf('/Roteiro_Apresentacao_Unireal.pdf', 'Roteiro_Apresentacao_Unireal.pdf')}
-            disabled={downloadingDoc === 'Roteiro_Apresentacao_Unireal.pdf'}
-            className="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-600 transition-all cursor-pointer"
-          >
-            {downloadingDoc === 'Roteiro_Apresentacao_Unireal.pdf' ? (
-              <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-transparent animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4" />
-            )}
-            <span>Roteiro Alunos (PDF)</span>
-          </button>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Stats Block */}
