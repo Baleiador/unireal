@@ -34,7 +34,7 @@ export function Ranking() {
     return p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`;
   };
 
-  const rankingGrades = ['Todos', ...GRADES.filter(g => g !== 'Coordenação / Professor')];
+  const rankingGrades = ['Todos', ...GRADES];
 
   useEffect(() => {
     fetchRanking();
@@ -62,14 +62,6 @@ export function Ranking() {
       }
 
       let filtered = (data || []) as Profile[];
-
-      // Strictly exclude parents and coordination from student ranking
-      filtered = filtered.filter(p => {
-        const isParent = (p as any).role === 'parent' || p.grade === 'Responsável / Familiar';
-        const isCoord = p.grade === 'Coordenação / Professor';
-        return !isParent && !isCoord;
-      });
-
       if (selectedUnit === 'Ribeirão') {
         filtered = filtered.filter(p => p.unit === 'Ribeirão');
       } else if (selectedUnit === 'Palmares') {
