@@ -34,7 +34,7 @@ export function Ranking() {
     return p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`;
   };
 
-  const rankingGrades = ['Todos', ...GRADES];
+  const rankingGrades = ['Todos', ...GRADES.filter(g => g !== 'Coordenação / Professor')];
 
   useEffect(() => {
     fetchRanking();
@@ -62,6 +62,10 @@ export function Ranking() {
       }
 
       let filtered = (data || []) as Profile[];
+
+      // Exclude coordination from student ranking
+      filtered = filtered.filter(p => p.grade !== 'Coordenação / Professor');
+
       if (selectedUnit === 'Ribeirão') {
         filtered = filtered.filter(p => p.unit === 'Ribeirão');
       } else if (selectedUnit === 'Palmares') {

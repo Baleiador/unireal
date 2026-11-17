@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-type Profile = {
+export type Profile = {
   id: string;
   full_name: string;
   balance: number;
@@ -10,6 +10,7 @@ type Profile = {
   is_admin: boolean;
   grade: string | null;
   unit: string | null;
+  email?: string;
 };
 
 type AuthContextType = {
@@ -47,25 +48,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (data) {
         const { data: { user: currentUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
         const meta = currentUser?.user_metadata || {};
+        
         setProfile({
           ...data,
           full_name: data.full_name || meta.full_name || currentUser?.email?.split('@')[0] || 'Usuário',
           grade: data.grade || meta.grade || null,
           unit: data.unit || meta.unit || 'Palmares',
           avatar_url: data.avatar_url || meta.avatar_url || null,
+          email: data.email || currentUser?.email || undefined,
         });
       } else {
         // Profile row doesn't exist yet, try to create one from user metadata
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          const meta = user.user_metadata || {};
+          
           const newProfile = {
             id: user.id,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
+            full_name: meta.full_name || user.email?.split('@')[0] || 'Usuário',
             balance: 0,
             avatar_url: null,
             is_admin: false,
-            grade: user.user_metadata?.grade || null,
-            unit: user.user_metadata?.unit || 'Ribeirão',
+            grade: meta.grade || null,
+            unit: meta.unit || 'Ribeirão',
           };
 
           const { data: createdData, error: insertError } = await supabase
@@ -74,11 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select('*')
             .maybeSingle();
 
-          if (!insertError && createdData) {
-            setProfile(createdData);
-          } else {
-            setProfile(newProfile as Profile);
-          }
+          const baseProfile = (!insertError && createdData) ? createdData : (newProfile as Profile);
+          setProfile({
+            ...baseProfile,
+            email: user.email || undefined,
+          });
         }
       }
     } catch (error) {

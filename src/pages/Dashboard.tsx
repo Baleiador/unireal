@@ -36,7 +36,7 @@ type TransactionItem = {
 };
 
 export function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [activities, setActivities] = useState<TransactionItem[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -279,17 +279,23 @@ export function Dashboard() {
               </div>
               
               {!profile?.is_admin && (
-                <div className="flex items-center gap-2 mt-6 md:mt-8">
+                <div className="flex flex-wrap items-center gap-2 mt-6 md:mt-8">
                   <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     Estudante
                   </span>
                   <span className="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
                     {profile?.grade || 'Sem Turma'}
                   </span>
+                  {profile?.unit && (
+                    <span className="px-3 py-1.5 md:px-4 md:py-2 bg-black/20 backdrop-blur-md rounded-full text-[10px] md:text-sm font-black border border-white/10">
+                      Unidade {profile.unit}
+                    </span>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
+
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to={profile?.is_admin ? "/admin" : "/transfer"} className="block group">

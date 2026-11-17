@@ -17,9 +17,8 @@ export function Login() {
     setLoading(true);
     setError(null);
 
-    // Placeholder check
     if (import.meta.env.VITE_SUPABASE_URL === 'YOUR_SUPABASE_URL' || !import.meta.env.VITE_SUPABASE_URL) {
-      setError('ATENÇÃO: Variáveis do Supabase não configuradas. Vá ao menu Secrets do AI Studio e adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
+      setError('ATENÇÃO: Variáveis do Supabase não configuradas.');
       setLoading(false);
       return;
     }
@@ -30,11 +29,7 @@ export function Login() {
     });
 
     if (error) {
-      if (error.message === 'Failed to fetch') {
-        setError('Erro de conexão: Verifique se suas chaves do Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) estão configuradas corretamente e se a URL começa com https://');
-      } else {
-        setError(error.message);
-      }
+      setError(error.message);
     } else {
       navigate('/');
     }
@@ -49,9 +44,9 @@ export function Login() {
         </div>
         
         <h2 className="text-2xl font-bold text-center text-black mb-2">Bem-vindo de volta!</h2>
-        <p className="text-center text-gray-500 mb-8">Faça login para acessar suas recompensas.</p>
+        <p className="text-center text-gray-500 mb-8">Acesse sua conta bancária escolar.</p>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm text-center">
               {error}
@@ -59,7 +54,7 @@ export function Login() {
           )}
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">E-mail Escolar</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail Escolar</label>
             <Input
               type="email"
               placeholder="aluno@colegioreal.com.br"
@@ -70,9 +65,9 @@ export function Login() {
           </div>
           
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">Senha</label>
-              <Link to="/forgot-password" className="text-sm text-brand-orange hover:underline">
+              <Link to="/forgot-password" className="text-xs text-brand-orange hover:underline font-medium">
                 Esqueceu a senha?
               </Link>
             </div>
@@ -85,13 +80,18 @@ export function Login() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar'}
+          <Button type="submit" className="w-full py-3.5" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar na Conta'}
           </Button>
         </form>
         
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Ainda não tem uma conta? <Link to="/register" className="text-brand-orange font-medium hover:underline">Cadastre-se</Link></p>
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <p>
+            Novo por aqui?{' '}
+            <Link to="/register" className="text-brand-orange font-semibold hover:underline">
+              Cadastre-se
+            </Link>
+          </p>
         </div>
       </div>
     </div>
